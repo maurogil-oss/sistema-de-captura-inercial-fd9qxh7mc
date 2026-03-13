@@ -7,6 +7,14 @@ export interface SensorDataPoint {
   lateralForce: number
 }
 
+export interface TripEvent {
+  id: string
+  type: string
+  timestamp: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  details: string
+}
+
 export type PermissionState = 'idle' | 'granted' | 'denied' | 'unsupported'
 
 export function useInertialSensors() {
@@ -19,8 +27,8 @@ export function useInertialSensors() {
   const [maxJerk, setMaxJerk] = useState(0)
   const [potholes, setPotholes] = useState(0)
   const [permissionState, setPermissionState] = useState<PermissionState>('idle')
+  const [eventLog, setEventLog] = useState<TripEvent[]>([])
 
-  // Edge AI & Lazy Sensing Features
   const [gpsPollingRate, setGpsPollingRate] = useState<1 | 30>(1)
   const [isStationary, setIsStationary] = useState(false)
   const [criticalEvent, setCriticalEvent] = useState<{ id: string; type: string } | null>(null)
@@ -36,6 +44,7 @@ export function useInertialSensors() {
     potholes: 0,
     hasEvent: false,
     isStationary: false,
+    newEvents: [] as TripEvent[],
   })
   const eventCountRef = useRef(0)
   const checkTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
@@ -119,6 +128,7 @@ export function useInertialSensors() {
     setIsWaiting(false)
     dataRef.current = []
     setData([])
+    setEventLog([])
 
     statsRef.current = {
       zenScore: 100,
@@ -127,6 +137,7 @@ export function useInertialSensors() {
       potholes: 0,
       hasEvent: false,
       isStationary: false,
+      newEvents: [],
     }
     setZenScore(100)
     setPhi(100)
@@ -173,10 +184,21 @@ export function useInertialSensors() {
         const daZ = (acc.z || 0) - lastAccelRef.current.z
 
         jerk = Math.sqrt(daX * daX + daY * daY + daZ * daZ) / dt
+
         if (jerk > 30) {
           statsRef.current.zenScore = Math.max(0, statsRef.current.zenScore - 0.2)
+          if (!statsRef.current.hasEvent) {
+            statsRef.current.newEvents.push({
+              id: Date.now().toString(),
+              type: 'HARD_BRAKE',
+              timestamp: new Date().toLocaleTimeString(),
+              severity: jerk > 45 ? 'critical' : 'high',
+              details: `Jerk: ${jerk.toFixed(1)} da/dt`,
+            })
+          }
           statsRef.current.hasEvent = true
         }
+
         if (jerk > statsRef.current.maxJerk) statsRef.current.maxJerk = jerk
 
         gForceZ = (acc.z || 0) / 9.81
@@ -186,15 +208,37 @@ export function useInertialSensors() {
 
         if (Math.abs(gForceZ) > 2.0) {
           statsRef.current.potholes += 0.05
+          if (!statsRef.current.hasEvent) {
+            statsRef.current.newEvents.push({
+              id: Date.now().toString(),
+              type: 'POTHOLE',
+              timestamp: new Date().toLocaleTimeString(),
+              severity: Math.abs(gForceZ) > 3.0 ? 'critical' : 'medium',
+              details: `Força G Z: ${gForceZ.toFixed(2)}G`,
+            })
+          }
           statsRef.current.hasEvent = true
         }
+
         if (Math.abs(gForceZ - 1) > 1.2) {
           statsRef.current.phi = Math.max(0, statsRef.current.phi - 0.5)
         }
 
         lateralForce = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2) / 9.81
 
-        // Edge AI: Adaptive GPS Polling logic (Mocked based on IMU variance)
+        if (lateralForce > 1.0) {
+          if (!statsRef.current.hasEvent) {
+            statsRef.current.newEvents.push({
+              id: Date.now().toString(),
+              type: 'CORNERING',
+              timestamp: new Date().toLocaleTimeString(),
+              severity: lateralForce > 1.5 ? 'critical' : 'high',
+              details: `Lateral: ${lateralForce.toFixed(2)}G`,
+            })
+          }
+          statsRef.current.hasEvent = true
+        }
+
         const movementDelta = Math.abs(daX) + Math.abs(daY) + Math.abs(daZ)
         if (movementDelta < 0.2) {
           stationaryTimerRef.current += dt
@@ -238,9 +282,19 @@ export function useInertialSensors() {
           setMaxJerk(statsRef.current.maxJerk)
           setPotholes(Math.floor(statsRef.current.potholes))
 
+          if (statsRef.current.newEvents.length > 0) {
+            setEventLog((prev) => [...prev, ...statsRef.current.newEvents].slice(-50))
+            setCriticalEvent({
+              id: statsRef.current.newEvents[0].id,
+              type: statsRef.current.newEvents[0].type,
+            })
+            statsRef.current.newEvents = []
+          }
+
           if (statsRef.current.hasEvent) {
-            setCriticalEvent({ id: Date.now().toString(), type: 'EVENT' })
-            statsRef.current.hasEvent = false
+            setTimeout(() => {
+              statsRef.current.hasEvent = false
+            }, 1000)
           }
 
           if (statsRef.current.isStationary !== isStationaryRef.current) {
@@ -279,5 +333,6 @@ export function useInertialSensors() {
     isStationary,
     criticalEvent,
     isBackground,
+    eventLog,
   }
 }

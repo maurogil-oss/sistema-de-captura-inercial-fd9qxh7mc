@@ -1,13 +1,16 @@
 import { cn } from '@/lib/utils'
 import { useSimulation } from '@/stores/SimulationContext'
-import { CloudLightning } from 'lucide-react'
+import { CloudLightning, MapPin } from 'lucide-react'
+import { TripEvent } from '@/hooks/useInertialSensors'
 
 export function MapMock({
   className,
   mode = 'default',
+  events = [],
 }: {
   className?: string
   mode?: 'default' | 'heatmap' | 'potholes'
+  events?: TripEvent[]
 }) {
   const { isSimulating } = useSimulation()
 
@@ -21,7 +24,6 @@ export function MapMock({
         className,
       )}
     >
-      {/* Grid pattern background */}
       <div
         className="absolute inset-0 opacity-20"
         style={{
@@ -31,7 +33,6 @@ export function MapMock({
         }}
       ></div>
 
-      {/* Stylized map paths (mock) */}
       <svg
         className="absolute inset-0 w-full h-full opacity-30"
         viewBox="0 0 100 100"
@@ -51,6 +52,14 @@ export function MapMock({
           className="text-muted-foreground"
           strokeWidth="0.2"
         />
+        <path
+          d="M10,80 Q50,20 90,80"
+          fill="none"
+          stroke="hsl(var(--primary))"
+          className="opacity-50"
+          strokeWidth="1.5"
+          strokeDasharray="4,4"
+        />
         {mode === 'potholes' && (
           <path
             d="M0,70 Q40,90 100,30"
@@ -63,10 +72,40 @@ export function MapMock({
         )}
       </svg>
 
-      {/* Simulated Events */}
+      {/* Render Event Markers */}
+      {events.slice(-5).map((e, idx) => {
+        const left = 20 + ((idx * 15) % 60)
+        const top = 30 + ((idx * 10) % 40)
+        return (
+          <div
+            key={e.id}
+            className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer"
+            style={{ left: `${left}%`, top: `${top}%` }}
+            title={`${e.type} - ${e.timestamp}`}
+          >
+            <div className="relative">
+              <div
+                className={cn(
+                  'w-3 h-3 rounded-full z-10 relative',
+                  e.severity === 'critical' ? 'bg-destructive' : 'bg-amber-500',
+                )}
+              />
+              <div
+                className={cn(
+                  'absolute inset-0 rounded-full animate-ping opacity-75',
+                  e.severity === 'critical' ? 'bg-destructive' : 'bg-amber-500',
+                )}
+              />
+            </div>
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 whitespace-nowrap bg-background/90 text-foreground text-[10px] px-2 py-1 rounded border border-border z-20">
+              {e.type}
+            </span>
+          </div>
+        )
+      })}
+
       <div className="absolute top-[48%] left-[48%]">
-        <div className="w-3 h-3 bg-primary rounded-full" />
-        <div className="absolute inset-0 bg-primary rounded-full animate-ping-slow opacity-75" />
+        <MapPin className="w-5 h-5 text-primary transform -translate-x-1/2 -translate-y-1/2" />
       </div>
 
       {isSimulating && (
@@ -79,8 +118,6 @@ export function MapMock({
       {mode === 'heatmap' && (
         <>
           <div className="absolute top-[60%] left-[30%] w-16 h-16 bg-amber-500/20 blur-xl rounded-full" />
-
-          {/* Weather-contextualized high risk area */}
           <div className="absolute top-[40%] left-[60%] w-24 h-24 bg-destructive/30 blur-2xl rounded-full" />
           <div className="absolute top-[40%] left-[60%] w-12 h-12 bg-purple-500/40 blur-xl rounded-full" />
           <div className="absolute top-[45%] left-[65%] flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2">
@@ -92,9 +129,8 @@ export function MapMock({
         </>
       )}
 
-      {/* Overlay controls or labels */}
       <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur px-3 py-1.5 rounded text-[10px] font-mono border border-border text-muted-foreground">
-        CAMADA: {translatedMode}
+        CAMADA: {translatedMode} | EVENTOS: {events.length}
       </div>
     </div>
   )

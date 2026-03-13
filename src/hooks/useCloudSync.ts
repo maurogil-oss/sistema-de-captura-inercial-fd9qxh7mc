@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { TripEvent } from './useInertialSensors'
 
 export type SyncStatus =
   | 'Offline'
@@ -15,6 +16,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
   const [remoteData, setRemoteData] = useState<any[]>([])
   const [remoteStats, setRemoteStats] = useState<any>(null)
+  const [remoteEventLog, setRemoteEventLog] = useState<TripEvent[]>([])
   const [isReceiving, setIsReceiving] = useState(false)
 
   const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
@@ -46,12 +48,16 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
         } else {
           setRemoteData((prev) => {
             const merged = [...prev, ...payload.data]
-            return merged.slice(-60) // Keep standard buffer size for UI
+            return merged.slice(-60)
           })
           setSyncStatus('Recebendo Evento Crítico')
         }
 
         setRemoteStats(payload.stats)
+        if (payload.events && Array.isArray(payload.events)) {
+          setRemoteEventLog(payload.events)
+        }
+
         setIsReceiving(true)
 
         if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
@@ -97,11 +103,10 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   }, [sessionId])
 
   const sendEvent = useCallback(
-    (data: any[], stats: any, type: 'CRITICAL_EVENT' | 'TRIP_SUMMARY') => {
+    (data: any[], stats: any, events: TripEvent[], type: 'CRITICAL_EVENT' | 'TRIP_SUMMARY') => {
       if (isCapturingRef.current) {
         try {
-          const payload = { data, stats, type, timestamp: Date.now() }
-          // Write to cloud mock
+          const payload = { data, stats, events, type, timestamp: Date.now() }
           localStorage.setItem(`orbis_cloud_db_${sessionId}`, JSON.stringify(payload))
 
           if (window.BroadcastChannel) {
@@ -128,5 +133,5 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     [sessionId],
   )
 
-  return { syncStatus, sendEvent, remoteData, remoteStats, isReceiving }
+  return { syncStatus, sendEvent, remoteData, remoteStats, remoteEventLog, isReceiving }
 }
