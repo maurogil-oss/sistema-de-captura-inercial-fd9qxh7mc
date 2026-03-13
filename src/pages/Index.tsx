@@ -34,13 +34,13 @@ const WeatherIcon = ({ weather, className }: { weather: string; className?: stri
 const WeatherLabel = ({ weather }: { weather: string }) => {
   switch (weather) {
     case 'RAIN':
-      return 'Pista Molhada'
+      return 'Wet Road'
     case 'STORM':
-      return 'Tempestade'
+      return 'Storm'
     case 'FOG':
-      return 'Neblina'
+      return 'Fog'
     default:
-      return 'Pista Seca'
+      return 'Clear Road'
   }
 }
 

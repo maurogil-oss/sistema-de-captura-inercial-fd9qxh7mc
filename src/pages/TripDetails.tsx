@@ -24,7 +24,7 @@ export default function TripDetails() {
               <Clock className="w-4 h-4" /> 45 min duration
             </span>
             <span className="flex items-center gap-1 text-purple-500 font-medium bg-purple-500/10 px-2 py-0.5 rounded">
-              <CloudLightning className="w-4 h-4" /> Tempestade
+              <CloudLightning className="w-4 h-4" /> Storm
             </span>
           </p>
         </div>

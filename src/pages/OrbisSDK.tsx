@@ -20,25 +20,25 @@ import { cn } from '@/lib/utils'
 const LAYER_DATA = [
   {
     title: 'Layer 0: Raw Data',
-    desc: 'Ephemeral buffer stored locally on the device. Contains high-frequency (100Hz) Accel, Gyro, and GPS streams. Cleared after processing unless an event triggers a clip saving.',
+    desc: 'Ephemeral buffer stored locally on the device. Contains high-frequency (60Hz) timestamp_ms, accel, gyro, and gps streams. Cleared after processing unless an event triggers a clip saving.',
     badge: 'Local Buffer',
     theme: 'primary',
   },
   {
     title: 'Layer 1: Telemetry Events',
-    desc: 'JSON packets sent to the cloud. Contains event classifications (HARD_BRAKE, POTHOLE_IMPACT), base severity (1-10), location, and speed. Includes the 5s data clip.',
+    desc: 'JSON packets sent to the cloud. Contains event classifications (HARD_BRAKE, RAPID_ACCEL, HARD_CORNERING, POTHOLE_IMPACT, PHONE_USAGE), base severity (1-10), location, and speed. Includes the 5s data clip.',
     badge: 'Cloud Ingestion',
     theme: 'blue',
   },
   {
-    title: 'Layer 2: Trip Context',
-    desc: 'Events aggregated into continuous trips. Enriched with Environmental Context Auditor which adjusts event severity based on weather data (e.g., 2.0x penalty for storms).',
+    title: 'Layer 2: Trip Data',
+    desc: 'Events aggregated into continuous trips with distance_km, duration_min, and idle_time_min. Enriched with Environmental Context Auditor which adjusts event severity based on weather_condition.',
     badge: 'Data Enrichment',
     theme: 'amber',
   },
   {
     title: 'Layer 3: Business Intelligence',
-    desc: 'Final computed metrics for dashboards. Includes Driver Zen Score (0-100), Pavement Health Index (PHI), Carbon Footprint (CO2 emissions), and predictive maintenance flags.',
+    desc: 'Final computed metrics for dashboards. Includes Driver Zen Score, Pavement Health Index (PHI), Carbon Footprint, and Wear & Tear Index.',
     badge: 'Analytics View',
     theme: 'purple',
   },
@@ -124,7 +124,7 @@ export default function OrbisSDK() {
                     <h4 className="font-medium text-sm">Traffic Optimization Active</h4>
                     <p className="text-xs text-muted-foreground mt-1">
                       Achieving <strong>99.4% data reduction</strong> by transmitting only event
-                      clips (2s before / 3s after trigger) instead of raw 100Hz streams.
+                      clips (2s before / 3s after trigger) instead of raw 60Hz streams.
                     </p>
                   </div>
                 </div>
@@ -172,7 +172,7 @@ export default function OrbisSDK() {
             {[
               {
                 title: 'Capture',
-                value: '100Hz',
+                value: '60Hz',
                 desc: 'Local polling',
                 icon: Activity,
                 color: 'text-blue-500',
@@ -221,21 +221,41 @@ export default function OrbisSDK() {
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">Gravity Isolation (High-Pass Filter)</h4>
+                  <h4 className="font-semibold mb-2">Magnitude of Acceleration (Gravity Filter)</h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
-                    a_linear = a_total - g
+                    |a| = √(x² + y² + z²) - 1g
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Removes the 9.81 m/s² constant to isolate pure linear acceleration.
+                    Isolates pure linear acceleration by removing the constant force of gravity.
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">Lateral G-Force (Cornering)</h4>
+                  <h4 className="font-semibold mb-2">Jerk Calculation (Rate of Change)</h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
-                    a_lat = v × ω
+                    da/dt = (a₂ - a₁) / Δt
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Velocity multiplied by yaw rate to detect Hard Cornering events.
+                    Measures the rate of change of acceleration to detect hard braking and rapid
+                    acceleration.
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+                  <h4 className="font-semibold mb-2">Centrifugal Force (Cornering)</h4>
+                  <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
+                    F_c = m * v² / r
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Calculates lateral force during turns to identify aggressive cornering events.
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+                  <h4 className="font-semibold mb-2">FFT Analysis (Vertical Impact)</h4>
+                  <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
+                    X(k) = Σ x(n) e^(-i2πkn/N)
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Fast Fourier Transform applied to z-axis to detect pavement anomalies and
+                    potholes.
                   </p>
                 </div>
               </div>

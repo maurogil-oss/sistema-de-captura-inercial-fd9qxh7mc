@@ -17,7 +17,7 @@ export default function CityInfrastructure() {
             <CardHeader className="pb-2 border-b border-border/50 z-10 bg-card/50 backdrop-blur absolute w-full">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Zeladoria 360: Pavement Health Index</CardTitle>
+                  <CardTitle>City Maintenance 360: Pavement Health Index</CardTitle>
                   <CardDescription>Pothole impacts mapped via inertial FFT</CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-background">
@@ -42,7 +42,7 @@ export default function CityInfrastructure() {
             <CardContent className="space-y-4">
               {[
                 { zone: 'Sector 4A', reason: 'High Pothole Density', phi: 32 },
-                { zone: 'Main Intersect', reason: 'Near-Miss Cluster', phi: 85 },
+                { zone: 'Main Intersect', reason: 'Near-Miss Index Spike', phi: 85 },
               ].map((z) => (
                 <div key={z.zone} className="p-3 bg-muted/30 rounded-lg border border-border/50">
                   <div className="flex justify-between items-start mb-2">
@@ -61,7 +61,7 @@ export default function CityInfrastructure() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary" />
-                Speed Audit
+                Real Speed Audit
               </CardTitle>
               <CardDescription>School Zones</CardDescription>
             </CardHeader>
