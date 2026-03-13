@@ -28,6 +28,13 @@ export function useInertialSensors() {
   const checkTimeoutRef = useRef<NodeJS.Timeout>()
   const rafRef = useRef<number>()
 
+  // Silent check for hardware support on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.DeviceMotionEvent) {
+      setPermissionState('unsupported')
+    }
+  }, [])
+
   const stopCapture = useCallback(() => {
     setIsCapturing(false)
     setIsWaiting(false)
@@ -36,10 +43,7 @@ export function useInertialSensors() {
   }, [])
 
   useEffect(() => {
-    // Navigation safety: Explicitly terminate sensors and loops to prevent memory leaks when unmounting
-    return () => {
-      stopCapture()
-    }
+    return () => stopCapture()
   }, [stopCapture])
 
   const requestSensorPermission = useCallback(async () => {
@@ -56,7 +60,6 @@ export function useInertialSensors() {
         return false
       }
 
-      // iOS Compatibility: Safely invoke requestPermission on user interaction
       if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
         const state = await (DeviceMotionEvent as any).requestPermission()
         if (state === 'granted') {
@@ -71,12 +74,10 @@ export function useInertialSensors() {
           return false
         }
       } else {
-        // Android / Other browsers where permission is implicitly granted or handled differently
         setPermissionState('granted')
         return true
       }
     } catch (e) {
-      console.error('Permission request failed:', e)
       setPermissionState('denied')
       setError('Acesso aos sensores negado. Por favor, habilite nas configurações do navegador.')
       setIsWaiting(false)
@@ -85,7 +86,6 @@ export function useInertialSensors() {
   }, [])
 
   const startCapture = async () => {
-    // Await user permission before initializing the 60Hz loop
     const granted = await requestSensorPermission()
     if (!granted) return
 
@@ -104,7 +104,6 @@ export function useInertialSensors() {
     lastTimeRef.current = performance.now()
     eventCountRef.current = 0
 
-    // Verify if sensors are actively sending data (handles edge cases where API exists but hardware doesn't)
     checkTimeoutRef.current = setTimeout(() => {
       if (eventCountRef.current === 0) {
         setError('Sensores não suportados neste dispositivo ou navegador.')
@@ -177,8 +176,6 @@ export function useInertialSensors() {
 
     let lastUpdate = performance.now()
     const updateUI = (now: number) => {
-      // Performance Stability: Throttle heavy React state updates to 10 FPS (100ms)
-      // This keeps the main thread free, ensuring a smooth 60 FPS for scrolling and button interactions
       if (now - lastUpdate >= 100) {
         if (dataRef.current.length > 0) {
           setData([...dataRef.current])
@@ -212,6 +209,6 @@ export function useInertialSensors() {
     maxJerk,
     potholes,
     permissionState,
-    requestSensorPermission, // Exposed if manual triggering without start is needed
+    requestSensorPermission,
   }
 }

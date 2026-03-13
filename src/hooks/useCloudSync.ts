@@ -1,20 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
-export type SyncStatus = 'Offline' | 'Connected' | 'Syncing' | 'Local-Only'
+export type SyncStatus = 'Offline' | 'Waiting' | 'Connected' | 'Syncing' | 'Local-Only'
 
 export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
   const [remoteData, setRemoteData] = useState<any[]>([])
   const [remoteStats, setRemoteStats] = useState<any>(null)
+  const [isReceiving, setIsReceiving] = useState(false)
 
   const channelRef = useRef<BroadcastChannel | null>(null)
   const syncTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.BroadcastChannel) {
       try {
         channelRef.current = new BroadcastChannel('orbis_cloud_sync')
-        setSyncStatus('Connected')
+        setSyncStatus('Waiting')
 
         const handleMessage = (event: MessageEvent) => {
           const { type, sId, payload } = event.data
@@ -22,6 +24,12 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
             if (!isCapturing) {
               setRemoteData(payload.data)
               setRemoteStats(payload.stats)
+
+              setIsReceiving(true)
+              if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
+              receivingTimeoutRef.current = setTimeout(() => {
+                setIsReceiving(false)
+              }, 1500)
             }
 
             setSyncStatus('Syncing')
@@ -36,6 +44,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
 
         return () => {
           if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current)
+          if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
           channelRef.current?.removeEventListener('message', handleMessage)
           channelRef.current?.close()
         }
@@ -70,5 +79,5 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     [sessionId, isCapturing],
   )
 
-  return { syncStatus, sendBatch, remoteData, remoteStats }
+  return { syncStatus, sendBatch, remoteData, remoteStats, isReceiving }
 }

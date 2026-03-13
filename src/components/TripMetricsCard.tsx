@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 interface TripMetricsCardProps {
   hasActivated: boolean
   isCapturing: boolean
-  isMonitoring: boolean
+  isReceiving: boolean
   hasData: boolean
   maxJerk: number
   potholes: number
@@ -15,14 +15,14 @@ interface TripMetricsCardProps {
 }
 
 export function TripMetricsCard(props: TripMetricsCardProps) {
-  const showStats = props.isCapturing || props.isMonitoring || props.hasData
+  const showStats = props.hasData
 
   return (
     <Card className="glass-panel relative overflow-hidden shadow-sm">
       {props.isCapturing && (
         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full" />
       )}
-      {props.isMonitoring && (
+      {props.isReceiving && !props.isCapturing && (
         <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full" />
       )}
       <CardHeader className="pb-3 border-b border-border/30">
@@ -37,7 +37,7 @@ export function TripMetricsCard(props: TripMetricsCardProps) {
             <Skeleton className="h-5 w-16" />
           ) : (
             <span className="font-mono text-destructive font-medium flex items-center gap-1">
-              {showStats ? props.maxJerk.toFixed(1) : '0.0'}{' '}
+              {showStats ? props.maxJerk.toFixed(1) : '--'}{' '}
               <span className="text-[10px] text-muted-foreground">da/dt</span>
             </span>
           )}
@@ -51,7 +51,7 @@ export function TripMetricsCard(props: TripMetricsCardProps) {
             <Skeleton className="h-5 w-20" />
           ) : (
             <span className="font-mono text-amber-500 font-medium bg-amber-500/10 px-2 py-0.5 rounded">
-              {showStats ? props.potholes : '0'} detectadas
+              {showStats ? props.potholes : '--'} detectadas
             </span>
           )}
         </div>
@@ -64,14 +64,16 @@ export function TripMetricsCard(props: TripMetricsCardProps) {
             <span
               className={cn(
                 'text-lg font-mono font-bold transition-colors',
-                props.phi < 80
-                  ? 'text-destructive'
-                  : props.phi < 95
-                    ? 'text-amber-500'
-                    : 'text-emerald-500',
+                !showStats
+                  ? 'text-muted-foreground'
+                  : props.phi < 80
+                    ? 'text-destructive'
+                    : props.phi < 95
+                      ? 'text-amber-500'
+                      : 'text-emerald-500',
               )}
             >
-              {showStats ? Math.round(props.phi) : '100'}
+              {showStats ? Math.round(props.phi) : '--'}
               <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">/100</span>
             </span>
           )}
@@ -85,14 +87,16 @@ export function TripMetricsCard(props: TripMetricsCardProps) {
             <span
               className={cn(
                 'text-lg font-mono font-bold transition-colors',
-                props.zenScore < 80
-                  ? 'text-destructive'
-                  : props.zenScore < 95
-                    ? 'text-amber-500'
-                    : 'text-emerald-500',
+                !showStats
+                  ? 'text-muted-foreground'
+                  : props.zenScore < 80
+                    ? 'text-destructive'
+                    : props.zenScore < 95
+                      ? 'text-amber-500'
+                      : 'text-emerald-500',
               )}
             >
-              {showStats ? Math.round(props.zenScore) : '100'}
+              {showStats ? Math.round(props.zenScore) : '--'}
               <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">pts</span>
             </span>
           )}

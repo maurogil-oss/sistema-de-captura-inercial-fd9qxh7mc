@@ -1,16 +1,33 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Activity } from 'lucide-react'
 
 interface TripChartsProps {
   data: any[]
   animate?: boolean
+  waitingForData?: boolean
 }
 
-export function TripCharts({ data, animate = true }: TripChartsProps) {
+export function TripCharts({ data, animate = true, waitingForData = false }: TripChartsProps) {
   const chartConfig = {
     jerk: { label: 'Solavanco (da/dt)', color: 'hsl(var(--primary))' },
     gForceZ: { label: 'Força G (Z)', color: 'hsl(var(--destructive))' },
     lateralForce: { label: 'Força Lateral G', color: 'hsl(var(--chart-3))' },
+  }
+
+  if (waitingForData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground bg-muted/5 rounded-xl border border-dashed border-border/50 p-6 text-center animate-in fade-in zoom-in-95">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+          <Activity className="w-8 h-8 text-primary/60 animate-pulse" />
+        </div>
+        <h3 className="text-lg font-semibold text-foreground mb-2">Monitoramento Ao Vivo Ativo</h3>
+        <p className="text-sm max-w-md mx-auto">
+          Aguardando a transmissão de dados inerciais de alta frequência (60Hz). Conecte o
+          dispositivo móvel de origem utilizando o link da sessão para transmitir telemetria.
+        </p>
+      </div>
+    )
   }
 
   return (

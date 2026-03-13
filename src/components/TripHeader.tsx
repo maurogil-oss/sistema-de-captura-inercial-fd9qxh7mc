@@ -1,9 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Cloud,
   CloudOff,
-  CloudLightning,
   Activity,
   Shield,
   Square,
@@ -11,6 +9,7 @@ import {
   Key,
   Link as LinkIcon,
   MapPin,
+  Smartphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -19,7 +18,8 @@ interface TripHeaderProps {
   sessionId: string
   syncStatus: string
   isCapturing: boolean
-  isMonitoring: boolean
+  isMonitorDevice: boolean
+  isReceiving: boolean
   permissionState: string
   isWaiting: boolean
   startCapture: () => void
@@ -38,16 +38,26 @@ export function TripHeader(props: TripHeaderProps) {
   }
 
   const getSyncBadge = () => {
-    if (props.syncStatus === 'Syncing')
+    if (props.syncStatus === 'Syncing' || props.isReceiving)
       return (
-        <Badge className="bg-blue-500 hover:bg-blue-600 gap-1">
-          <CloudLightning className="w-3 h-3 animate-pulse" /> Sincronizando Nuvem
+        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          🟢 Sincronizado
         </Badge>
       )
-    if (props.syncStatus === 'Connected')
+    if (props.syncStatus === 'Waiting' || props.syncStatus === 'Connected')
       return (
-        <Badge variant="outline" className="border-blue-500 text-blue-500 gap-1">
-          <Cloud className="w-3 h-3" /> Nuvem Conectada
+        <Badge
+          variant="outline"
+          className="border-amber-500/50 text-amber-600 dark:text-amber-500 gap-1.5 bg-amber-500/5"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          🟡 Conectado (Aguardando)
         </Badge>
       )
     if (props.syncStatus === 'Local-Only')
@@ -77,24 +87,24 @@ export function TripHeader(props: TripHeaderProps) {
               'border whitespace-nowrap',
               props.isCapturing
                 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                : props.isMonitoring
+                : props.isReceiving
                   ? 'bg-purple-500/10 text-purple-500 border-purple-500/20'
-                  : props.permissionState === 'idle' ||
-                      props.permissionState === 'unsupported' ||
-                      props.permissionState === 'denied'
-                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                    : 'bg-primary/10 text-primary border-primary/20',
+                  : props.isMonitorDevice
+                    ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                    : props.permissionState === 'idle' || props.permissionState === 'denied'
+                      ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                      : 'bg-primary/10 text-primary border-primary/20',
             )}
           >
             {props.isCapturing
               ? 'GRAVANDO AO VIVO'
-              : props.isMonitoring
-                ? 'MONITORANDO SESSÃO'
-                : props.permissionState === 'idle' ||
-                    props.permissionState === 'unsupported' ||
-                    props.permissionState === 'denied'
-                  ? 'AGUARDANDO ATIVAÇÃO'
-                  : 'SESSÃO PRONTA'}
+              : props.isReceiving
+                ? 'RECEBENDO DADOS REMOTOS'
+                : props.isMonitorDevice
+                  ? 'MONITOR DE SESSÃO'
+                  : props.permissionState === 'idle' || props.permissionState === 'denied'
+                    ? 'AGUARDANDO ATIVAÇÃO'
+                    : 'SESSÃO PRONTA'}
           </Badge>
         </div>
         <p className="text-muted-foreground flex items-center gap-3 text-sm flex-wrap">
@@ -106,7 +116,7 @@ export function TripHeader(props: TripHeaderProps) {
               <Activity className="w-4 h-4" /> Processando Buffer L0
             </span>
           )}
-          {props.isMonitoring && (
+          {props.isReceiving && !props.isCapturing && (
             <span className="flex items-center gap-1 text-purple-500 font-medium bg-purple-500/10 px-2 py-0.5 rounded animate-pulse">
               <Activity className="w-4 h-4" /> Recebendo Dados da Nuvem
             </span>
@@ -143,7 +153,15 @@ export function TripHeader(props: TripHeaderProps) {
           >
             <Square className="w-5 h-5" fill="currentColor" /> Parar Captura
           </Button>
-        ) : props.isMonitoring ? (
+        ) : props.isMonitorDevice ? (
+          <Button
+            size="lg"
+            onClick={copyLink}
+            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg shadow-blue-900/20"
+          >
+            <Smartphone className="w-5 h-5" fill="currentColor" /> Conectar Celular
+          </Button>
+        ) : props.isReceiving ? (
           <Button
             size="lg"
             variant="secondary"
@@ -171,11 +189,7 @@ export function TripHeader(props: TripHeaderProps) {
           <Button
             size="lg"
             onClick={props.startCapture}
-            disabled={props.permissionState === 'unsupported'}
-            className={cn(
-              'gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg text-white',
-              props.permissionState === 'unsupported' ? '' : 'bg-amber-600 hover:bg-amber-700',
-            )}
+            className="gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg text-white bg-amber-600 hover:bg-amber-700"
           >
             <Key className="w-5 h-5" fill="currentColor" /> Ativar Sensores
           </Button>
