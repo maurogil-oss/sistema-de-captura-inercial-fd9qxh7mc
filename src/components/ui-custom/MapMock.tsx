@@ -11,6 +11,9 @@ export function MapMock({
 }) {
   const { isSimulating } = useSimulation()
 
+  const translatedMode =
+    mode === 'heatmap' ? 'MAPA DE CALOR' : mode === 'potholes' ? 'BURACOS' : 'PADRÃO'
+
   return (
     <div
       className={cn(
@@ -83,7 +86,7 @@ export function MapMock({
           <div className="absolute top-[45%] left-[65%] flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2">
             <CloudLightning className="w-5 h-5 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
             <span className="text-[8px] font-mono text-purple-300 font-bold mt-1 bg-background/80 px-1 rounded">
-              2.0x SEVERITY
+              SEVERIDADE 2.0x
             </span>
           </div>
         </>
@@ -91,7 +94,7 @@ export function MapMock({
 
       {/* Overlay controls or labels */}
       <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur px-3 py-1.5 rounded text-[10px] font-mono border border-border text-muted-foreground">
-        LAYER: {mode.toUpperCase()}
+        CAMADA: {translatedMode}
       </div>
     </div>
   )

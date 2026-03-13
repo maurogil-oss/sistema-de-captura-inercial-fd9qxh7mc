@@ -18,7 +18,7 @@ export function Header() {
           <Search className="absolute left-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search driver, vehicle or trip_id..."
+            placeholder="Buscar motorista, veículo ou trip_id..."
             className="w-full bg-muted/50 pl-9 border-none focus-visible:ring-1"
           />
         </form>
@@ -32,7 +32,7 @@ export function Header() {
           className="font-mono text-xs hidden sm:flex"
         >
           {isSimulating ? <Square className="w-3 h-3 mr-2" /> : <Play className="w-3 h-3 mr-2" />}
-          {isSimulating ? 'STOP MOCK L0' : 'MOCK L0 STREAM'}
+          {isSimulating ? 'PARAR FLUXO L0' : 'SIMULAR FLUXO L0'}
         </Button>
 
         <Button variant="ghost" size="icon" className="relative">
@@ -42,11 +42,11 @@ export function Header() {
 
         <div className="flex items-center gap-2 border-l pl-4">
           <div className="hidden md:block text-right">
-            <p className="text-sm font-medium leading-none">Admin User</p>
-            <p className="text-xs text-muted-foreground">Fleet Manager</p>
+            <p className="text-sm font-medium leading-none">Usuário Admin</p>
+            <p className="text-xs text-muted-foreground">Gestor de Frota</p>
           </div>
           <Avatar className="h-8 w-8 border border-border">
-            <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?seed=1" alt="User" />
+            <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?seed=1" alt="Usuário" />
             <AvatarFallback>AD</AvatarFallback>
           </Avatar>
         </div>

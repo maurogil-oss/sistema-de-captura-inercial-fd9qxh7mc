@@ -15,16 +15,16 @@ interface TripChartsProps {
 
 export function TripCharts({ data }: TripChartsProps) {
   const chartConfig = {
-    jerk: { label: 'Jerk (da/dt)', color: 'hsl(var(--primary))' },
-    gForceZ: { label: 'G-Force (Z)', color: 'hsl(var(--destructive))' },
-    lateralForce: { label: 'Lateral G', color: 'hsl(var(--chart-3))' },
+    jerk: { label: 'Solavanco (da/dt)', color: 'hsl(var(--primary))' },
+    gForceZ: { label: 'Força G (Z)', color: 'hsl(var(--destructive))' },
+    lateralForce: { label: 'Força Lateral G', color: 'hsl(var(--chart-3))' },
   }
 
   return (
     <div className="space-y-6">
       <div className="h-[200px]">
         <h3 className="text-sm font-semibold mb-2 text-muted-foreground">
-          Jerk (Acceleration Change)
+          Solavanco (Variação de Aceleração)
         </h3>
         <ChartContainer config={chartConfig} className="h-full w-full">
           <LineChart
@@ -56,7 +56,7 @@ export function TripCharts({ data }: TripChartsProps) {
 
       <div className="h-[200px]">
         <h3 className="text-sm font-semibold mb-2 text-muted-foreground">
-          Vertical G-Force (Z-Axis / Potholes)
+          Força G Vertical (Eixo Z / Buracos)
         </h3>
         <ChartContainer config={chartConfig} className="h-full w-full">
           <LineChart
@@ -88,7 +88,7 @@ export function TripCharts({ data }: TripChartsProps) {
 
       <div className="h-[200px]">
         <h3 className="text-sm font-semibold mb-2 text-muted-foreground">
-          Centrifugal Force (Lateral)
+          Força Centrífuga (Lateral)
         </h3>
         <ChartContainer config={chartConfig} className="h-full w-full">
           <LineChart

@@ -7,8 +7,10 @@ export default function CityInfrastructure() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">City Infrastructure</h1>
-        <p className="text-muted-foreground">B2G Dashboard: Pavement Health & Safety Audits.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Infraestrutura Urbana</h1>
+        <p className="text-muted-foreground">
+          Dashboard B2G: Índice de Saúde do Pavimento e Auditorias de Segurança.
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -17,13 +19,13 @@ export default function CityInfrastructure() {
             <CardHeader className="pb-2 border-b border-border/50 z-10 bg-card/50 backdrop-blur absolute w-full">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Pothole Mapping / 360 Maintenance</CardTitle>
+                  <CardTitle>Zeladoria 360 / Mapeamento de Buracos</CardTitle>
                   <CardDescription>
-                    Pavement Health Index (PHI) mapped via inertial FFT
+                    Índice de Saúde do Pavimento (PHI) mapeado via FFT inercial
                   </CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-background">
-                  Risk Mode
+                  Modo de Risco
                 </Badge>
               </div>
             </CardHeader>
@@ -38,24 +40,24 @@ export default function CityInfrastructure() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-destructive" />
-                Critical Zones
+                Zonas Críticas
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
                 {
-                  zone: 'Sector 4A',
-                  reason: 'High Pothole Density',
+                  zone: 'Setor 4A',
+                  reason: 'Alta Densidade de Buracos',
                   phi: 32,
-                  severity: 'High',
-                  volume: '14,500/day',
+                  severity: 'Alta',
+                  volume: '14.500/dia',
                 },
                 {
-                  zone: 'Main Intersect',
-                  reason: 'Near-Miss Index Spike',
+                  zone: 'Cruzamento Principal',
+                  reason: 'Pico no Índice de Quase-Acidente',
                   phi: 85,
-                  severity: 'Critical',
-                  volume: '42,000/day',
+                  severity: 'Crítica',
+                  volume: '42.000/dia',
                 },
               ].map((z) => (
                 <div key={z.zone} className="p-3 bg-muted/30 rounded-lg border border-border/50">
@@ -64,17 +66,17 @@ export default function CityInfrastructure() {
                       <span className="font-bold">{z.zone}</span>
                       <div className="flex gap-3 text-[10px] mt-1 text-muted-foreground font-mono">
                         <span>
-                          Severity:{' '}
+                          Severidade:{' '}
                           <span
                             className={
-                              z.severity === 'Critical' ? 'text-destructive' : 'text-amber-500'
+                              z.severity === 'Crítica' ? 'text-destructive' : 'text-amber-500'
                             }
                           >
                             {z.severity}
                           </span>
                         </span>
                         <span>
-                          Traffic Volume: <span className="text-foreground">{z.volume}</span>
+                          Volume de Tráfego: <span className="text-foreground">{z.volume}</span>
                         </span>
                       </div>
                     </div>
@@ -92,25 +94,25 @@ export default function CityInfrastructure() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary" />
-                Real Speed Audit
+                Auditoria de Velocidade Real
               </CardTitle>
-              <CardDescription>School Zones</CardDescription>
+              <CardDescription>Zonas Escolares</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Regulated Avg</span>
+                  <span>Média Regulamentada</span>
                   <span className="font-mono">40 km/h</span>
                 </div>
                 <div className="flex justify-between text-sm text-destructive">
-                  <span>Real L0 Avg</span>
+                  <span>Média Real L0</span>
                   <span className="font-mono">52 km/h</span>
                 </div>
                 <div className="h-2 w-full bg-muted rounded-full overflow-hidden mt-2">
                   <div className="h-full bg-destructive w-[75%]" />
                 </div>
                 <p className="text-xs text-muted-foreground text-center mt-2">
-                  12km/h delta detected
+                  Delta de 12km/h detectado
                 </p>
               </div>
             </CardContent>

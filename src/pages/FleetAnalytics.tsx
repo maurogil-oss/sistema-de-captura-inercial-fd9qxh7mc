@@ -16,29 +16,29 @@ import { Button } from '@/components/ui/button'
 
 export default function FleetAnalytics() {
   const chartConfig = {
-    co2: { label: 'CO2 Emissions (t)', color: 'hsl(var(--primary))' },
-    idling: { label: 'Idling Time (h)', color: 'hsl(var(--destructive))' },
+    co2: { label: 'Emissões de CO2 (t)', color: 'hsl(var(--primary))' },
+    idling: { label: 'Tempo Ocioso (h)', color: 'hsl(var(--destructive))' },
   }
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Fleet Analytics</h1>
-          <p className="text-muted-foreground">B2B Dashboard: Efficiency, ESG & Maintenance.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Análise de Frota</h1>
+          <p className="text-muted-foreground">Dashboard B2B: Eficiência, ESG e Manutenção.</p>
         </div>
       </div>
 
       <Tabs defaultValue="ranking" className="w-full">
         <TabsList className="grid w-full max-w-3xl grid-cols-1 md:grid-cols-3 h-auto">
           <TabsTrigger value="ranking" className="py-2">
-            Efficiency Ranking (Gamification)
+            Ranking de Eficiência
           </TabsTrigger>
           <TabsTrigger value="esg" className="py-2">
-            ESG Report (Scope 1)
+            Relatório ESG (Escopo 1)
           </TabsTrigger>
           <TabsTrigger value="heatmap" className="py-2">
-            Fleet Risk Heatmap
+            Mapa de Calor de Risco
           </TabsTrigger>
         </TabsList>
 
@@ -49,16 +49,16 @@ export default function FleetAnalytics() {
             <Card className="glass-panel">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div className="space-y-1">
-                  <CardTitle>Predictive Suspension Maintenance</CardTitle>
-                  <CardDescription>Flagged by vertical impact analysis (L0)</CardDescription>
+                  <CardTitle>Manutenção Preditiva de Suspensão</CardTitle>
+                  <CardDescription>Sinalizado por análise de impacto vertical (L0)</CardDescription>
                 </div>
                 <Wrench className="w-5 h-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-4 mt-4">
                   {[
-                    { v: 'V-042', reason: 'High Suspension Stress', count: 14 },
-                    { v: 'V-118', reason: 'Brake Pad Wear Anomaly', count: 8 },
+                    { v: 'V-042', reason: 'Estresse Alto na Suspensão', count: 14 },
+                    { v: 'V-118', reason: 'Anomalia no Desgaste das Pastilhas', count: 8 },
                   ].map((item) => (
                     <div
                       key={item.v}
@@ -69,7 +69,7 @@ export default function FleetAnalytics() {
                         <p className="text-xs text-muted-foreground">{item.reason}</p>
                       </div>
                       <Button variant="outline" size="sm">
-                        Inspect ({item.count})
+                        Inspecionar ({item.count})
                       </Button>
                     </div>
                   ))}
@@ -82,9 +82,11 @@ export default function FleetAnalytics() {
         <TabsContent value="esg" className="mt-6">
           <Card className="glass-panel">
             <CardHeader>
-              <CardTitle>ESG Report (Scope 1) & Idling/Waste Report</CardTitle>
+              <CardTitle>
+                Relatório ESG (Escopo 1) e Relatório de Desperdício (Ociosidade)
+              </CardTitle>
               <CardDescription>
-                Tracking emission reductions against idle engine times.
+                Monitoramento de redução de emissões em relação ao tempo de motor ocioso.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -137,9 +139,9 @@ export default function FleetAnalytics() {
         <TabsContent value="heatmap" className="mt-6 space-y-6">
           <Card className="glass-panel overflow-hidden h-[600px] flex flex-col">
             <CardHeader className="pb-2 border-b border-border/50 z-10 bg-card/50 backdrop-blur absolute w-full">
-              <CardTitle>Fleet Risk Heatmap</CardTitle>
+              <CardTitle>Mapa de Calor de Risco</CardTitle>
               <CardDescription>
-                Aggregated L1 telemetric events mapped geographically
+                Eventos telemétricos L1 agregados mapeados geograficamente
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0 flex-1 relative">

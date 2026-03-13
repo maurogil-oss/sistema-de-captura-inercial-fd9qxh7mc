@@ -13,10 +13,10 @@ import {
 } from '@/components/ui/sidebar'
 
 const menuItems = [
-  { title: 'Overview', icon: Home, url: '/' },
-  { title: 'Fleet Analytics', icon: BarChart2, url: '/fleet' },
-  { title: 'City Infrastructure', icon: MapIcon, url: '/city' },
-  { title: 'Trip Telemetry', icon: Activity, url: '/trip/latest' },
+  { title: 'Início', icon: Home, url: '/' },
+  { title: 'Análise de Frota', icon: BarChart2, url: '/fleet' },
+  { title: 'Infraestrutura Urbana', icon: MapIcon, url: '/city' },
+  { title: 'Telemetria de Viagem', icon: Activity, url: '/trip/latest' },
 ]
 
 export function AppSidebar() {
@@ -58,10 +58,10 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Calibration">
+            <SidebarMenuButton asChild tooltip="Calibração">
               <a href="#">
                 <Settings />
-                <span>Calibration</span>
+                <span>Calibração</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

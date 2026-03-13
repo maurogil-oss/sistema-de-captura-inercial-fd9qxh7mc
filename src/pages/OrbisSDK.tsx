@@ -19,27 +19,27 @@ import { cn } from '@/lib/utils'
 
 const LAYER_DATA = [
   {
-    title: 'Layer 0: Raw Data',
-    desc: 'Ephemeral buffer stored locally on the device. Contains high-frequency 60Hz (60 samples per second) streams: accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, and gps. Cleared after processing unless an event triggers a clip saving.',
-    badge: 'Local Buffer',
+    title: 'Camada 0: Dados Brutos',
+    desc: 'Buffer efêmero armazenado localmente no dispositivo. Contém fluxos de alta frequência a 60Hz (Taxa de Amostragem de 60Hz): accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z e gps. Limpo após o processamento a menos que um evento dispare o salvamento do clipe.',
+    badge: 'Buffer Local',
     theme: 'primary',
   },
   {
-    title: 'Layer 1: Telemetric Events',
-    desc: 'JSON packets sent to the cloud. Contains event classifications (Hard Brake, Rapid Accel, Hard Cornering, Pothole Impact, Phone Usage), base severity (1-10), location, and speed. Includes the 5s data clip.',
-    badge: 'Cloud Ingestion',
+    title: 'Camada 1: Eventos Telemétricos',
+    desc: 'Pacotes JSON enviados para a nuvem. Contém classificações de eventos (Frenagem Brusca, Aceleração Agressiva, Curva Perigosa, Impacto de Buraco, Uso de Celular), severidade base (1-10), localização e velocidade. Inclui o clipe de dados de 5s.',
+    badge: 'Ingestão na Nuvem',
     theme: 'blue',
   },
   {
-    title: 'Layer 2: Trip Context',
-    desc: 'Events aggregated into continuous trips. Includes Trip ID, Driver ID, Distance, Duration, Idle Time, Weather Condition. Enriched with Environmental Context Auditor which adjusts event severity.',
-    badge: 'Data Enrichment',
+    title: 'Camada 2: Contexto de Viagem',
+    desc: 'Eventos agregados em viagens contínuas. Inclui ID da Viagem, ID do Motorista, Distância, Duração, Tempo Ocioso, Condição Climática. Enriquecido com o Auditor de Contexto Ambiental que ajusta a severidade dos eventos.',
+    badge: 'Enriquecimento',
     theme: 'amber',
   },
   {
-    title: 'Layer 3: Business Intelligence',
-    desc: 'Final computed metrics for dashboards. Includes Driver Zen Score, Carbon Footprint, Wear & Tear Index, and Pavement Health Index (PHI).',
-    badge: 'Analytics View',
+    title: 'Camada 3: Inteligência de Negócio',
+    desc: 'Métricas finais processadas para dashboards. Inclui Pontuação Zen do Motorista (Zen Score), Pegada de Carbono, Índice de Desgaste e Índice de Saúde do Pavimento (PHI).',
+    badge: 'Visão Analítica',
     theme: 'purple',
   },
 ]
@@ -49,17 +49,17 @@ export default function OrbisSDK() {
   const [apiKeys, setApiKeys] = useState([
     {
       id: '1',
-      name: 'Production Fleet Alpha',
+      name: 'Frota de Produção Alpha',
       key: 'orb_live_****************8f92',
       devices: 142,
-      status: 'Active',
+      status: 'Ativo',
     },
     {
       id: '2',
-      name: 'Testing Sandbox',
+      name: 'Sandbox de Testes',
       key: 'orb_test_****************3a1b',
       devices: 5,
-      status: 'Active',
+      status: 'Ativo',
     },
   ])
 
@@ -68,27 +68,32 @@ export default function OrbisSDK() {
       ...apiKeys,
       {
         id: Date.now().toString(),
-        name: 'New Integration Key',
+        name: 'Nova Chave de Integração',
         key: `orb_live_****************${Math.floor(Math.random() * 9000 + 1000)}`,
         devices: 0,
-        status: 'Active',
+        status: 'Ativo',
       },
     ])
-    toast({ title: 'API Key Generated', description: 'New Orbis SDK key created successfully.' })
+    toast({
+      title: 'Chave de API Gerada',
+      description: 'Nova chave SDK Orbis criada com sucesso.',
+    })
   }
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Orbis Inertial SDK</h1>
-        <p className="text-muted-foreground">Centralized Data Ingestion & Edge AI Management.</p>
+        <h1 className="text-3xl font-bold tracking-tight">SDK Inercial Orbis</h1>
+        <p className="text-muted-foreground">
+          Gerenciamento Centralizado de Ingestão de Dados e Edge AI.
+        </p>
       </div>
 
       <Tabs defaultValue="integration" className="w-full">
         <TabsList className="grid w-full max-w-2xl grid-cols-3">
-          <TabsTrigger value="integration">Integration</TabsTrigger>
-          <TabsTrigger value="edge">Edge AI Processing</TabsTrigger>
-          <TabsTrigger value="catalog">Data Catalog</TabsTrigger>
+          <TabsTrigger value="integration">Integração</TabsTrigger>
+          <TabsTrigger value="edge">Processamento Edge AI</TabsTrigger>
+          <TabsTrigger value="catalog">Catálogo de Dados</TabsTrigger>
         </TabsList>
 
         <TabsContent value="integration" className="space-y-6 mt-6">
@@ -96,13 +101,15 @@ export default function OrbisSDK() {
             <Card className="glass-panel">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Server className="w-5 h-5 text-primary" /> Data Ingestion Endpoint
+                  <Server className="w-5 h-5 text-primary" /> Endpoint de Ingestão de Dados
                 </CardTitle>
-                <CardDescription>Secure backend interface for telemetry packets</CardDescription>
+                <CardDescription>
+                  Interface de backend segura para pacotes de telemetria
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Endpoint URL</Label>
+                  <Label>URL do Endpoint</Label>
                   <div className="flex gap-2">
                     <Input
                       readOnly
@@ -112,7 +119,7 @@ export default function OrbisSDK() {
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => toast({ description: 'Copied to clipboard' })}
+                      onClick={() => toast({ description: 'Copiado para a área de transferência' })}
                     >
                       <Key className="w-4 h-4" />
                     </Button>
@@ -121,11 +128,11 @@ export default function OrbisSDK() {
                 <div className="p-4 bg-muted/30 rounded-lg border border-border/50 flex items-start gap-3">
                   <Shield className="w-8 h-8 text-emerald-500 mt-1" />
                   <div>
-                    <h4 className="font-medium text-sm">Traffic Optimization Active</h4>
+                    <h4 className="font-medium text-sm">Otimização de Tráfego Ativa</h4>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Achieving <strong>99.4% data reduction</strong> by transmitting only event
-                      clips (2s before / 3s after trigger) instead of raw 60Hz (60 samples per
-                      second) streams.
+                      Atingindo <strong>redução de dados de 99,4%</strong> transmitindo apenas
+                      clipes de eventos (2s antes / 3s depois do gatilho) em vez dos fluxos
+                      contínuos brutos (Taxa de Amostragem de 60Hz).
                     </p>
                   </div>
                 </div>
@@ -135,20 +142,20 @@ export default function OrbisSDK() {
             <Card className="glass-panel">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
-                  <CardTitle>API Keys</CardTitle>
-                  <CardDescription>Authenticate SDK instances</CardDescription>
+                  <CardTitle>Chaves de API</CardTitle>
+                  <CardDescription>Autenticar instâncias do SDK</CardDescription>
                 </div>
                 <Button onClick={generateApiKey} size="sm" className="gap-2">
-                  <Key className="w-4 h-4" /> Generate
+                  <Key className="w-4 h-4" /> Gerar
                 </Button>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border/50">
-                      <TableHead>Name</TableHead>
-                      <TableHead>API Key</TableHead>
-                      <TableHead className="text-right">Devices</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Chave de API</TableHead>
+                      <TableHead className="text-right">Dispositivos</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -172,30 +179,30 @@ export default function OrbisSDK() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
               {
-                title: 'Capture',
+                title: 'Captura',
                 value: '60Hz',
-                desc: '60 samples/sec',
+                desc: '60 amostras/seg',
                 icon: Activity,
                 color: 'text-blue-500',
               },
               {
-                title: 'Sensor Fusion',
+                title: 'Fusão de Sensores',
                 value: 'Auto-Calib',
-                desc: 'Kalman Filter',
+                desc: 'Filtro de Kalman',
                 icon: Smartphone,
                 color: 'text-purple-500',
               },
               {
-                title: 'Jerk (da/dt)',
-                value: 'Triggers',
-                desc: 'Hard Brake/Accel',
+                title: 'Solavanco (da/dt)',
+                value: 'Gatilhos',
+                desc: 'Frenagem/Aceleração',
                 icon: Zap,
                 color: 'text-amber-500',
               },
               {
-                title: 'FFT Analysis',
-                value: 'Anomalies',
-                desc: 'Pothole detection',
+                title: 'Análise FFT',
+                value: 'Anomalias',
+                desc: 'Detecção de buracos',
                 icon: Cpu,
                 color: 'text-destructive',
               },
@@ -216,51 +223,52 @@ export default function OrbisSDK() {
 
           <Card className="glass-panel">
             <CardHeader>
-              <CardTitle>Mathematical Edge Calculations</CardTitle>
-              <CardDescription>Algorithms running locally on Sovereign Kernel L0</CardDescription>
+              <CardTitle>Cálculos Matemáticos na Borda (Edge)</CardTitle>
+              <CardDescription>
+                Algoritmos sendo executados localmente no Sovereign Kernel L0
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">High-Pass Filter (Gravity Removal)</h4>
+                  <h4 className="font-semibold mb-2">Filtro Passa-Alta (Remoção de Gravidade)</h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
                     |a| = √(x² + y² + z²) - 1g
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Isolates pure linear acceleration by removing the constant force of gravity.
+                    Isola a aceleração linear pura removendo a força constante da gravidade.
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">
-                    Jerk Calculation (Sudden Braking/Acceleration)
-                  </h4>
+                  <h4 className="font-semibold mb-2">Cálculo de Jerk (Solavanco)</h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
                     da/dt = (a₂ - a₁) / Δt
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Measures the rate of change of acceleration to detect hard braking and rapid
-                    acceleration.
+                    Mede a taxa de variação da aceleração para detectar frenagens bruscas e
+                    acelerações rápidas.
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">Centrifugal Force (Lateral G-Force)</h4>
+                  <h4 className="font-semibold mb-2">Força Centrífuga (Força G Lateral)</h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
                     F_c = m * v² / r
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Calculates lateral force during turns to identify aggressive cornering events.
+                    Calcula a força lateral durante curvas para identificar eventos agressivos de
+                    manobra.
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
                   <h4 className="font-semibold mb-2">
-                    Fast Fourier Transform (FFT) for Pothole Detection
+                    Transformada Rápida de Fourier (FFT) para Detecção de Buracos
                   </h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
                     X(k) = Σ x(n) e^(-i2πkn/N)
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Fast Fourier Transform applied to z-axis to detect pavement anomalies and
-                    potholes.
+                    Transformada Rápida de Fourier (FFT) aplicada ao eixo z para detectar anomalias
+                    no pavimento e buracos.
                   </p>
                 </div>
               </div>
@@ -272,7 +280,7 @@ export default function OrbisSDK() {
           <Card className="glass-panel">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-primary" /> Multi-Layer Data Catalog
+                <Layers className="w-5 h-5 text-primary" /> Catálogo de Dados Multicamadas
               </CardTitle>
             </CardHeader>
             <CardContent>

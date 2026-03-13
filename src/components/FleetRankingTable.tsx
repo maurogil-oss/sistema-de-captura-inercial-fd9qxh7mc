@@ -17,10 +17,10 @@ export function FleetRankingTable() {
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="w-[100px]">ID</TableHead>
-            <TableHead>Driver Name</TableHead>
-            <TableHead className="text-right">Distance (km)</TableHead>
-            <TableHead className="text-right">Idling Time</TableHead>
-            <TableHead className="text-right">Zen Score</TableHead>
+            <TableHead>Nome do Motorista</TableHead>
+            <TableHead className="text-right">Distância (km)</TableHead>
+            <TableHead className="text-right">Tempo Ocioso</TableHead>
+            <TableHead className="text-right">Pontuação Zen</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -50,7 +50,7 @@ export function FleetRankingTable() {
                   {driver.weatherPenalties > 0 && (
                     <span
                       className="text-[10px] text-destructive flex items-center gap-1"
-                      title="Penalties applied due to risky maneuvers in adverse weather"
+                      title="Penalidades aplicadas devido a manobras arriscadas em condições climáticas adversas"
                     >
                       <CloudRain className="w-3 h-3" /> -{driver.weatherPenalties} pts
                     </span>

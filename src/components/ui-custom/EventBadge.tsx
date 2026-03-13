@@ -19,6 +19,16 @@ export function EventBadge({
     critical: 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20 animate-pulse',
   }
 
+  const translations: Record<string, string> = {
+    HARD_BRAKE: 'Frenagem Brusca',
+    RAPID_ACCEL: 'Aceleração Agressiva',
+    CORNERING: 'Curva Perigosa',
+    POTHOLE: 'Impacto de Buraco',
+    IDLING: 'Ociosidade',
+  }
+
+  const translatedType = translations[type] || type.replace('_', ' ')
+
   return (
     <Badge
       variant="outline"
@@ -28,7 +38,7 @@ export function EventBadge({
         className,
       )}
     >
-      {type.replace('_', ' ')}
+      {translatedType}
     </Badge>
   )
 }
