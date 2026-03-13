@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { mockTripTimeline } from '@/data/mockData'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -7,13 +7,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   CloudLightning,
   MapPin,
-  Clock,
   Play,
   Square,
   Activity,
   AlertTriangle,
   Smartphone,
   Shield,
+  Key,
 } from 'lucide-react'
 import { TripCharts } from '@/components/TripCharts'
 import { MapMock } from '@/components/ui-custom/MapMock'
@@ -21,8 +21,19 @@ import { useInertialSensors } from '@/hooks/useInertialSensors'
 import { cn } from '@/lib/utils'
 
 export default function TripDetails() {
-  const { isCapturing, startCapture, stopCapture, data, error, zenScore, phi, maxJerk, potholes } =
-    useInertialSensors()
+  const {
+    isCapturing,
+    startCapture,
+    stopCapture,
+    data,
+    error,
+    zenScore,
+    phi,
+    maxJerk,
+    potholes,
+    permissionState,
+    requestSensorPermission,
+  } = useInertialSensors()
 
   const sessionId = useMemo(() => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -49,10 +60,16 @@ export default function TripDetails() {
                 'border whitespace-nowrap',
                 isCapturing
                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                  : 'bg-primary/10 text-primary border-primary/20',
+                  : permissionState === 'prompt'
+                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                    : 'bg-primary/10 text-primary border-primary/20',
               )}
             >
-              {isCapturing ? 'GRAVANDO AO VIVO' : 'SESSÃO PRONTA'}
+              {isCapturing
+                ? 'GRAVANDO AO VIVO'
+                : permissionState === 'prompt'
+                  ? 'AGUARDANDO PERMISSÃO'
+                  : 'SESSÃO PRONTA'}
             </Badge>
           </div>
           <p className="text-muted-foreground flex items-center gap-3 text-sm flex-wrap">
@@ -80,6 +97,7 @@ export default function TripDetails() {
               </p>
             </div>
           </div>
+
           {isCapturing ? (
             <Button
               size="lg"
@@ -87,15 +105,24 @@ export default function TripDetails() {
               onClick={stopCapture}
               className="gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg"
             >
-              <Square className="w-5 h-5" fill="currentColor" /> Encerrar Captura
+              <Square className="w-5 h-5" fill="currentColor" /> Parar
+            </Button>
+          ) : permissionState === 'prompt' ? (
+            <Button
+              size="lg"
+              onClick={requestSensorPermission}
+              className="gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              <Key className="w-5 h-5" fill="currentColor" /> Ativar Sensores
             </Button>
           ) : (
             <Button
               size="lg"
               onClick={startCapture}
+              disabled={permissionState === 'unsupported'}
               className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg shadow-emerald-900/20"
             >
-              <Play className="w-5 h-5" fill="currentColor" /> Iniciar Teste em Campo
+              <Play className="w-5 h-5" fill="currentColor" /> Iniciar Captura
             </Button>
           )}
         </div>
@@ -121,7 +148,9 @@ export default function TripDetails() {
                 <CardDescription className="mt-1">
                   {isCapturing
                     ? 'Buffer efêmero renderizando aceleração e giroscópio a ~30Hz.'
-                    : 'Toque em Iniciar para capturar dados reais dos sensores do seu smartphone.'}
+                    : permissionState === 'unsupported'
+                      ? 'Dispositivo incompatível com simulação em tempo real.'
+                      : 'Toque em Iniciar para capturar dados reais dos sensores do seu smartphone.'}
                 </CardDescription>
               </div>
             </CardHeader>

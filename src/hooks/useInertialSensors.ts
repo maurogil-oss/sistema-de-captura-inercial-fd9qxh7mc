@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 export interface SensorDataPoint {
   time: string
@@ -6,6 +6,14 @@ export interface SensorDataPoint {
   gForceZ: number
   lateralForce: number
 }
+
+export type PermissionState =
+  | 'unknown'
+  | 'prompt'
+  | 'granted'
+  | 'denied'
+  | 'not_required'
+  | 'unsupported'
 
 export function useInertialSensors() {
   const [isCapturing, setIsCapturing] = useState(false)
@@ -15,6 +23,7 @@ export function useInertialSensors() {
   const [phi, setPhi] = useState(100)
   const [maxJerk, setMaxJerk] = useState(0)
   const [potholes, setPotholes] = useState(0)
+  const [permissionState, setPermissionState] = useState<PermissionState>('unknown')
 
   const lastAccelRef = useRef<{ x: number; y: number; z: number } | null>(null)
   const lastTimeRef = useRef<number>(0)
@@ -23,39 +32,62 @@ export function useInertialSensors() {
   const eventCountRef = useRef(0)
   const checkTimeoutRef = useRef<NodeJS.Timeout>()
 
-  const requestPermission = async () => {
+  useEffect(() => {
+    // Initial check for sensor support and permission requirements
+    if (typeof window === 'undefined') return
+
+    if (!window.DeviceMotionEvent) {
+      setPermissionState('unsupported')
+      setError('Sensores de movimento não detectados ou não suportados neste navegador.')
+      return
+    }
+
+    // Check if the browser requires explicit permission (like iOS 13+)
+    if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+      setPermissionState('prompt')
+    } else {
+      setPermissionState('not_required')
+    }
+  }, [])
+
+  const requestSensorPermission = useCallback(async () => {
     if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
       try {
-        const permissionState = await (DeviceMotionEvent as any).requestPermission()
-        if (permissionState === 'granted') {
+        const state = await (DeviceMotionEvent as any).requestPermission()
+        if (state === 'granted') {
+          setPermissionState('granted')
+          setError(null)
           return true
         } else {
+          setPermissionState('denied')
           setError(
-            'Permissão negada. Por favor, habilite o acesso a "Movimento e Orientação" nas configurações do seu navegador para usar esta funcionalidade.',
+            'Permissão negada. Por favor, habilite o acesso a "Movimento e Orientação" nas configurações do seu navegador.',
           )
           return false
         }
       } catch (e) {
-        console.error(e)
+        console.error('Permission request failed:', e)
+        setPermissionState('denied')
         setError(
-          'Erro ao solicitar permissão. Certifique-se de estar usando um dispositivo compatível.',
+          'Erro ao solicitar permissão. O pedido deve ser feito através de uma interação do usuário.',
         )
         return false
       }
     }
     return true
-  }
+  }, [])
 
   const startCapture = async () => {
-    if (!window.DeviceMotionEvent) {
-      setError(
-        'Sensores inerciais não suportados neste navegador. Use um smartphone com Safari ou Chrome.',
-      )
+    if (permissionState === 'unsupported') {
+      setError('Sensores de movimento não detectados ou não suportados neste navegador.')
       return
     }
 
-    const hasPermission = await requestPermission()
-    if (!hasPermission) return
+    // Request permission implicitly if not already done, though it's better to use explicit button
+    if (permissionState === 'prompt' || permissionState === 'denied') {
+      const granted = await requestSensorPermission()
+      if (!granted) return
+    }
 
     setIsCapturing(true)
     setError(null)
@@ -72,21 +104,19 @@ export function useInertialSensors() {
     lastTimeRef.current = performance.now()
     eventCountRef.current = 0
 
-    // Verifica se os sensores estão realmente enviando dados após 2 segundos
+    // Verify if sensors are actually yielding data (handles desktop browsers reporting support but no hardware)
     checkTimeoutRef.current = setTimeout(() => {
       if (eventCountRef.current === 0) {
-        setError(
-          'Nenhum dado de sensor recebido. Este recurso requer hardware físico de acelerômetro (Smartphone/Tablet).',
-        )
+        setError('Sensores de movimento não detectados ou não suportados neste navegador.')
         setIsCapturing(false)
       }
     }, 2000)
   }
 
-  const stopCapture = () => {
+  const stopCapture = useCallback(() => {
     setIsCapturing(false)
     if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current)
-  }
+  }, [])
 
   useEffect(() => {
     if (!isCapturing) return
@@ -110,15 +140,17 @@ export function useInertialSensors() {
         const daZ = (acc.z || 0) - lastAccelRef.current.z
 
         jerk = Math.sqrt(daX * daX + daY * daY + daZ * daZ) / dt
+        // Penalty for high jerk (sudden braking/acceleration)
         if (jerk > 30) statsRef.current.zenScore = Math.max(0, statsRef.current.zenScore - 0.2)
         if (jerk > statsRef.current.maxJerk) statsRef.current.maxJerk = jerk
 
         gForceZ = (acc.z || 0) / 9.81
         if (accelerationIncludingGravity && !acceleration) {
-          // Compensação simples se a gravidade estiver incluída
+          // Simple compensation if pure acceleration is unavailable
           gForceZ = (accelerationIncludingGravity.z || 0) / 9.81
         }
 
+        // Pothole/anomaly detection on Z axis
         if (Math.abs(gForceZ) > 2.0) {
           statsRef.current.potholes += 0.05
         }
@@ -126,6 +158,7 @@ export function useInertialSensors() {
           statsRef.current.phi = Math.max(0, statsRef.current.phi - 0.5)
         }
 
+        // Lateral force for cornering
         lateralForce = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2) / 9.81
       }
 
@@ -143,7 +176,7 @@ export function useInertialSensors() {
       }
 
       dataRef.current.push(newPoint)
-      // Mantém um buffer de ~60 pontos para visualização
+      // Keep a buffer of ~60 points (approx 1-2 seconds at 60Hz, sufficient for UI)
       if (dataRef.current.length > 60) {
         dataRef.current.shift()
       }
@@ -151,7 +184,7 @@ export function useInertialSensors() {
 
     window.addEventListener('devicemotion', handleMotion, true)
 
-    // Atualiza a interface gráfica a 30Hz (aproximadamente a cada 33ms) para fluidez visual sem sobrecarregar
+    // Decouple UI updates from sensor frequency. Update React state at ~30Hz to prevent mobile browser hang
     const interval = setInterval(() => {
       if (dataRef.current.length > 0) {
         setData([...dataRef.current])
@@ -168,5 +201,17 @@ export function useInertialSensors() {
     }
   }, [isCapturing])
 
-  return { isCapturing, startCapture, stopCapture, data, error, zenScore, phi, maxJerk, potholes }
+  return {
+    isCapturing,
+    startCapture,
+    stopCapture,
+    data,
+    error,
+    zenScore,
+    phi,
+    maxJerk,
+    potholes,
+    permissionState,
+    requestSensorPermission,
+  }
 }
