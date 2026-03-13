@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   CloudLightning,
   MapPin,
@@ -23,6 +24,7 @@ import { cn } from '@/lib/utils'
 export default function TripDetails() {
   const {
     isCapturing,
+    isWaiting,
     startCapture,
     stopCapture,
     data,
@@ -32,7 +34,6 @@ export default function TripDetails() {
     maxJerk,
     potholes,
     permissionState,
-    requestSensorPermission,
   } = useInertialSensors()
 
   const sessionId = useMemo(() => {
@@ -44,6 +45,7 @@ export default function TripDetails() {
     return `TRP-${rand(4)}-${rand(2)}`
   }, [])
 
+  const hasActivated = permissionState === 'granted' || isCapturing
   const displayData = data.length > 0 ? data : mockTripTimeline
 
   return (
@@ -60,15 +62,19 @@ export default function TripDetails() {
                 'border whitespace-nowrap',
                 isCapturing
                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                  : permissionState === 'prompt'
+                  : permissionState === 'idle' ||
+                      permissionState === 'unsupported' ||
+                      permissionState === 'denied'
                     ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                     : 'bg-primary/10 text-primary border-primary/20',
               )}
             >
               {isCapturing
                 ? 'GRAVANDO AO VIVO'
-                : permissionState === 'prompt'
-                  ? 'AGUARDANDO PERMISSÃO'
+                : permissionState === 'idle' ||
+                    permissionState === 'unsupported' ||
+                    permissionState === 'denied'
+                  ? 'AGUARDANDO ATIVAÇÃO'
                   : 'SESSÃO PRONTA'}
             </Badge>
           </div>
@@ -105,24 +111,35 @@ export default function TripDetails() {
               onClick={stopCapture}
               className="gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg"
             >
-              <Square className="w-5 h-5" fill="currentColor" /> Parar
+              <Square className="w-5 h-5" fill="currentColor" /> Parar Captura
             </Button>
-          ) : permissionState === 'prompt' ? (
+          ) : isWaiting ? (
             <Button
               size="lg"
-              onClick={requestSensorPermission}
-              className="gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg bg-amber-600 hover:bg-amber-700 text-white"
+              disabled
+              className="gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg bg-primary/80 text-primary-foreground"
             >
-              <Key className="w-5 h-5" fill="currentColor" /> Ativar Sensores
+              <Activity className="w-5 h-5 animate-spin" /> Aguardando Sensores...
+            </Button>
+          ) : permissionState === 'granted' ? (
+            <Button
+              size="lg"
+              onClick={startCapture}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg shadow-emerald-900/20"
+            >
+              <Play className="w-5 h-5" fill="currentColor" /> Iniciar Captura
             </Button>
           ) : (
             <Button
               size="lg"
               onClick={startCapture}
               disabled={permissionState === 'unsupported'}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg shadow-emerald-900/20"
+              className={cn(
+                'gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg text-white',
+                permissionState === 'unsupported' ? '' : 'bg-amber-600 hover:bg-amber-700',
+              )}
             >
-              <Play className="w-5 h-5" fill="currentColor" /> Iniciar Captura
+              <Key className="w-5 h-5" fill="currentColor" /> Ativar Sensores
             </Button>
           )}
         </div>
@@ -131,7 +148,7 @@ export default function TripDetails() {
       {error && (
         <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Falha no Acesso aos Sensores</AlertTitle>
+          <AlertTitle>Atenção</AlertTitle>
           <AlertDescription className="mt-1">{error}</AlertDescription>
         </Alert>
       )}
@@ -147,15 +164,26 @@ export default function TripDetails() {
                 </CardTitle>
                 <CardDescription className="mt-1">
                   {isCapturing
-                    ? 'Buffer efêmero renderizando aceleração e giroscópio a ~30Hz.'
+                    ? 'Buffer efêmero renderizando aceleração e giroscópio a ~60Hz.'
                     : permissionState === 'unsupported'
                       ? 'Dispositivo incompatível com simulação em tempo real.'
-                      : 'Toque em Iniciar para capturar dados reais dos sensores do seu smartphone.'}
+                      : 'Toque em Ativar Sensores para capturar dados reais dos sensores do seu smartphone.'}
                 </CardDescription>
               </div>
             </CardHeader>
             <CardContent className="px-2 sm:px-6">
-              <TripCharts data={displayData} animate={!isCapturing} />
+              {!hasActivated ? (
+                <div className="space-y-6 pt-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-[200px] flex flex-col space-y-3">
+                      <Skeleton className="h-4 w-[200px]" />
+                      <Skeleton className="flex-1 w-full rounded-xl" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <TripCharts data={displayData} animate={!isCapturing} />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -191,57 +219,73 @@ export default function TripDetails() {
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <Activity className="w-4 h-4" /> Solavanco Máx (Jerk)
                 </span>
-                <span className="font-mono text-destructive font-medium flex items-center gap-1">
-                  {isCapturing || data.length > 0 ? maxJerk.toFixed(1) : '0.0'}{' '}
-                  <span className="text-[10px] text-muted-foreground">da/dt</span>
-                </span>
+                {!hasActivated ? (
+                  <Skeleton className="h-5 w-16" />
+                ) : (
+                  <span className="font-mono text-destructive font-medium flex items-center gap-1">
+                    {isCapturing || data.length > 0 ? maxJerk.toFixed(1) : '0.0'}{' '}
+                    <span className="text-[10px] text-muted-foreground">da/dt</span>
+                  </span>
+                )}
               </div>
 
               <div className="flex justify-between items-center group">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <AlertTriangle className="w-4 h-4" /> Anomalias de Impacto
                 </span>
-                <span className="font-mono text-amber-500 font-medium bg-amber-500/10 px-2 py-0.5 rounded">
-                  {isCapturing || data.length > 0 ? potholes : '0'} detectadas
-                </span>
+                {!hasActivated ? (
+                  <Skeleton className="h-5 w-20" />
+                ) : (
+                  <span className="font-mono text-amber-500 font-medium bg-amber-500/10 px-2 py-0.5 rounded">
+                    {isCapturing || data.length > 0 ? potholes : '0'} detectadas
+                  </span>
+                )}
               </div>
 
               <div className="flex justify-between items-center group pt-2 border-t border-border/30">
                 <span className="text-muted-foreground font-medium">Índice de Saúde (PHI)</span>
-                <span
-                  className={cn(
-                    'text-lg font-mono font-bold transition-colors',
-                    phi < 80
-                      ? 'text-destructive'
-                      : phi < 95
-                        ? 'text-amber-500'
-                        : 'text-emerald-500',
-                  )}
-                >
-                  {isCapturing || data.length > 0 ? Math.round(phi) : '100'}
-                  <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">
-                    /100
+                {!hasActivated ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <span
+                    className={cn(
+                      'text-lg font-mono font-bold transition-colors',
+                      phi < 80
+                        ? 'text-destructive'
+                        : phi < 95
+                          ? 'text-amber-500'
+                          : 'text-emerald-500',
+                    )}
+                  >
+                    {isCapturing || data.length > 0 ? Math.round(phi) : '100'}
+                    <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">
+                      /100
+                    </span>
                   </span>
-                </span>
+                )}
               </div>
 
               <div className="flex justify-between items-center group">
                 <span className="text-muted-foreground font-medium">Driver Zen Score</span>
-                <span
-                  className={cn(
-                    'text-lg font-mono font-bold transition-colors',
-                    zenScore < 80
-                      ? 'text-destructive'
-                      : zenScore < 95
-                        ? 'text-amber-500'
-                        : 'text-emerald-500',
-                  )}
-                >
-                  {isCapturing || data.length > 0 ? Math.round(zenScore) : '100'}
-                  <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">
-                    pts
+                {!hasActivated ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <span
+                    className={cn(
+                      'text-lg font-mono font-bold transition-colors',
+                      zenScore < 80
+                        ? 'text-destructive'
+                        : zenScore < 95
+                          ? 'text-amber-500'
+                          : 'text-emerald-500',
+                    )}
+                  >
+                    {isCapturing || data.length > 0 ? Math.round(zenScore) : '100'}
+                    <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">
+                      pts
+                    </span>
                   </span>
-                </span>
+                )}
               </div>
             </CardContent>
           </Card>
