@@ -1,7 +1,7 @@
 import { mockTripTimeline } from '@/data/mockData'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CloudRain, MapPin, Clock } from 'lucide-react'
+import { CloudLightning, MapPin, Clock } from 'lucide-react'
 import { TripCharts } from '@/components/TripCharts'
 import { MapMock } from '@/components/ui-custom/MapMock'
 
@@ -23,8 +23,8 @@ export default function TripDetails() {
             <span className="flex items-center gap-1">
               <Clock className="w-4 h-4" /> 45 min duration
             </span>
-            <span className="flex items-center gap-1 text-amber-500">
-              <CloudRain className="w-4 h-4" /> Heavy Rain
+            <span className="flex items-center gap-1 text-purple-500 font-medium bg-purple-500/10 px-2 py-0.5 rounded">
+              <CloudLightning className="w-4 h-4" /> Tempestade
             </span>
           </p>
         </div>
@@ -61,12 +61,23 @@ export default function TripDetails() {
 
           <Card className="glass-panel">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Trip Summary</CardTitle>
+              <CardTitle className="text-sm">Trip Context & Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
+              <div className="flex justify-between border-b border-border/50 pb-2 bg-purple-500/5 p-2 rounded -mx-2">
+                <span className="text-muted-foreground">Weather Impact</span>
+                <span className="font-mono text-purple-500 font-medium">
+                  2.0x Severity Multiplier
+                </span>
+              </div>
               <div className="flex justify-between border-b border-border/50 pb-2">
                 <span className="text-muted-foreground">Max Jerk</span>
-                <span className="font-mono text-destructive">18.4 da/dt</span>
+                <span className="font-mono text-destructive flex items-center gap-1">
+                  18.4 da/dt{' '}
+                  <Badge variant="destructive" className="h-4 text-[10px] px-1 ml-1">
+                    ADJUSTED
+                  </Badge>
+                </span>
               </div>
               <div className="flex justify-between border-b border-border/50 pb-2">
                 <span className="text-muted-foreground">Pothole Impacts</span>
@@ -74,7 +85,7 @@ export default function TripDetails() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Trip Zen Score</span>
-                <span className="font-mono text-primary">82</span>
+                <span className="font-mono text-amber-500">64 (Penalized)</span>
               </div>
             </CardContent>
           </Card>

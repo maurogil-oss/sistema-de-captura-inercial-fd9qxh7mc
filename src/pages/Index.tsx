@@ -1,10 +1,45 @@
-import { Activity, Car, Leaf, AlertTriangle } from 'lucide-react'
+import {
+  Activity,
+  Car,
+  Leaf,
+  AlertTriangle,
+  Sun,
+  CloudRain,
+  CloudLightning,
+  CloudFog,
+} from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
 import { ZenGauge } from '@/components/ui-custom/ZenGauge'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { EventBadge } from '@/components/ui-custom/EventBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { mockKPIs, mockRecentEvents } from '@/data/mockData'
+import { mockKPIs, mockRecentEvents, calculateSeverity, getSeverityLabel } from '@/data/mockData'
+
+const WeatherIcon = ({ weather, className }: { weather: string; className?: string }) => {
+  switch (weather) {
+    case 'RAIN':
+      return <CloudRain className={className} />
+    case 'STORM':
+      return <CloudLightning className={className} />
+    case 'FOG':
+      return <CloudFog className={className} />
+    default:
+      return <Sun className={className} />
+  }
+}
+
+const WeatherLabel = ({ weather }: { weather: string }) => {
+  switch (weather) {
+    case 'RAIN':
+      return 'Pista Molhada'
+    case 'STORM':
+      return 'Tempestade'
+    case 'FOG':
+      return 'Neblina'
+    default:
+      return 'Pista Seca'
+  }
+}
 
 export default function Index() {
   return (
@@ -81,21 +116,45 @@ export default function Index() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockRecentEvents.map((event) => (
-              <div
-                key={event.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <EventBadge type={event.type} severity={event.severity as any} />
-                  <div>
-                    <p className="text-sm font-medium">{event.driver}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{event.location}</p>
+            {mockRecentEvents.map((event) => {
+              const adjustedSeverity = calculateSeverity(event.baseSeverity, event.weather)
+              const severityLabel = getSeverityLabel(adjustedSeverity)
+
+              return (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col gap-2">
+                      <EventBadge type={event.type} severity={severityLabel} />
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <WeatherIcon weather={event.weather} className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">
+                          <WeatherLabel weather={event.weather} />
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{event.driver}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{event.location}</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-1">
+                    <div className="text-xs font-mono text-muted-foreground">{event.time}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                        Base {event.baseSeverity} &rarr;
+                      </span>
+                      <span className="text-sm font-bold font-mono px-2 py-0.5 rounded bg-background border border-border/50 shadow-sm">
+                        {adjustedSeverity.toFixed(1)}{' '}
+                        <span className="text-[10px] text-muted-foreground">/10</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-xs font-mono text-muted-foreground">{event.time}</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </CardContent>
       </Card>

@@ -1,3 +1,30 @@
+export type WeatherCondition = 'CLEAR' | 'RAIN' | 'STORM' | 'FOG'
+
+export const getWeatherMultiplier = (weather: WeatherCondition) => {
+  switch (weather) {
+    case 'RAIN':
+      return 1.5
+    case 'STORM':
+      return 2.0
+    case 'FOG':
+      return 1.3
+    case 'CLEAR':
+    default:
+      return 1.0
+  }
+}
+
+export const calculateSeverity = (baseSeverity: number, weather: WeatherCondition) => {
+  return Math.min(10, Math.round(baseSeverity * getWeatherMultiplier(weather) * 10) / 10)
+}
+
+export const getSeverityLabel = (severity: number): 'low' | 'medium' | 'high' | 'critical' => {
+  if (severity >= 8) return 'critical'
+  if (severity >= 6) return 'high'
+  if (severity >= 4) return 'medium'
+  return 'low'
+}
+
 export const mockKPIs = {
   zenScore: 84,
   totalDistance: 12450,
@@ -12,7 +39,8 @@ export const mockRecentEvents = [
     type: 'HARD_BRAKE',
     driver: 'Driver #402',
     time: '10:45 AM',
-    severity: 'high',
+    baseSeverity: 6,
+    weather: 'RAIN' as WeatherCondition,
     location: 'Downtown Ave',
   },
   {
@@ -20,7 +48,8 @@ export const mockRecentEvents = [
     type: 'POTHOLE',
     driver: 'Driver #119',
     time: '10:32 AM',
-    severity: 'medium',
+    baseSeverity: 4,
+    weather: 'STORM' as WeatherCondition,
     location: 'Main St.',
   },
   {
@@ -28,7 +57,8 @@ export const mockRecentEvents = [
     type: 'CORNERING',
     driver: 'Driver #084',
     time: '10:15 AM',
-    severity: 'low',
+    baseSeverity: 5,
+    weather: 'CLEAR' as WeatherCondition,
     location: 'Highway 61',
   },
   {
@@ -36,15 +66,17 @@ export const mockRecentEvents = [
     type: 'IDLING',
     driver: 'Driver #221',
     time: '09:50 AM',
-    severity: 'low',
+    baseSeverity: 2,
+    weather: 'FOG' as WeatherCondition,
     location: 'Depot',
   },
   {
     id: '5',
-    type: 'PHONE_USAGE',
+    type: 'RAPID_ACCEL',
     driver: 'Driver #402',
     time: '09:45 AM',
-    severity: 'critical',
+    baseSeverity: 8,
+    weather: 'RAIN' as WeatherCondition,
     location: 'Downtown Ave',
   },
 ]
@@ -54,6 +86,7 @@ export const mockFleetRanking = [
     id: 'D-402',
     name: 'James Holden',
     zenScore: 92,
+    weatherPenalties: 2,
     distance: 1240,
     idlingTime: '2h 10m',
     trend: 'up',
@@ -62,6 +95,7 @@ export const mockFleetRanking = [
     id: 'D-119',
     name: 'Naomi Nagata',
     zenScore: 88,
+    weatherPenalties: 0,
     distance: 980,
     idlingTime: '1h 45m',
     trend: 'neutral',
@@ -70,6 +104,7 @@ export const mockFleetRanking = [
     id: 'D-084',
     name: 'Amos Burton',
     zenScore: 76,
+    weatherPenalties: 5,
     distance: 1450,
     idlingTime: '4h 20m',
     trend: 'down',
@@ -78,6 +113,7 @@ export const mockFleetRanking = [
     id: 'D-221',
     name: 'Alex Kamal',
     zenScore: 65,
+    weatherPenalties: 8,
     distance: 1100,
     idlingTime: '5h 05m',
     trend: 'down',
@@ -86,6 +122,7 @@ export const mockFleetRanking = [
     id: 'D-007',
     name: 'Bobbie Draper',
     zenScore: 95,
+    weatherPenalties: 1,
     distance: 1600,
     idlingTime: '0h 50m',
     trend: 'up',

@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { useSimulation } from '@/stores/SimulationContext'
+import { CloudLightning } from 'lucide-react'
 
 export function MapMock({
   className,
@@ -75,7 +76,16 @@ export function MapMock({
       {mode === 'heatmap' && (
         <>
           <div className="absolute top-[60%] left-[30%] w-16 h-16 bg-amber-500/20 blur-xl rounded-full" />
-          <div className="absolute top-[40%] left-[60%] w-24 h-24 bg-destructive/20 blur-xl rounded-full" />
+
+          {/* Weather-contextualized high risk area */}
+          <div className="absolute top-[40%] left-[60%] w-24 h-24 bg-destructive/30 blur-2xl rounded-full" />
+          <div className="absolute top-[40%] left-[60%] w-12 h-12 bg-purple-500/40 blur-xl rounded-full" />
+          <div className="absolute top-[45%] left-[65%] flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2">
+            <CloudLightning className="w-5 h-5 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
+            <span className="text-[8px] font-mono text-purple-300 font-bold mt-1 bg-background/80 px-1 rounded">
+              2.0x SEVERITY
+            </span>
+          </div>
         </>
       )}
 
