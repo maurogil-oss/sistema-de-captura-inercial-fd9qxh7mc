@@ -30,12 +30,16 @@ export function useInertialSensors() {
         if (permissionState === 'granted') {
           return true
         } else {
-          setError('Permissão para sensores negada pelo usuário.')
+          setError(
+            'Permissão negada. Por favor, habilite o acesso a "Movimento e Orientação" nas configurações do seu navegador para usar esta funcionalidade.',
+          )
           return false
         }
       } catch (e) {
         console.error(e)
-        setError('Erro ao solicitar permissão para os sensores.')
+        setError(
+          'Erro ao solicitar permissão. Certifique-se de estar usando um dispositivo compatível.',
+        )
         return false
       }
     }
@@ -44,7 +48,9 @@ export function useInertialSensors() {
 
   const startCapture = async () => {
     if (!window.DeviceMotionEvent) {
-      setError('Sensores inerciais não detectados neste dispositivo.')
+      setError(
+        'Sensores inerciais não suportados neste navegador. Use um smartphone com Safari ou Chrome.',
+      )
       return
     }
 
@@ -66,9 +72,12 @@ export function useInertialSensors() {
     lastTimeRef.current = performance.now()
     eventCountRef.current = 0
 
+    // Verifica se os sensores estão realmente enviando dados após 2 segundos
     checkTimeoutRef.current = setTimeout(() => {
       if (eventCountRef.current === 0) {
-        setError('Sensores inerciais não detectados neste dispositivo.')
+        setError(
+          'Nenhum dado de sensor recebido. Este recurso requer hardware físico de acelerômetro (Smartphone/Tablet).',
+        )
         setIsCapturing(false)
       }
     }, 2000)
@@ -106,6 +115,7 @@ export function useInertialSensors() {
 
         gForceZ = (acc.z || 0) / 9.81
         if (accelerationIncludingGravity && !acceleration) {
+          // Compensação simples se a gravidade estiver incluída
           gForceZ = (accelerationIncludingGravity.z || 0) / 9.81
         }
 
@@ -133,6 +143,7 @@ export function useInertialSensors() {
       }
 
       dataRef.current.push(newPoint)
+      // Mantém um buffer de ~60 pontos para visualização
       if (dataRef.current.length > 60) {
         dataRef.current.shift()
       }
@@ -140,6 +151,7 @@ export function useInertialSensors() {
 
     window.addEventListener('devicemotion', handleMotion, true)
 
+    // Atualiza a interface gráfica a 30Hz (aproximadamente a cada 33ms) para fluidez visual sem sobrecarregar
     const interval = setInterval(() => {
       if (dataRef.current.length > 0) {
         setData([...dataRef.current])
@@ -148,7 +160,7 @@ export function useInertialSensors() {
         setMaxJerk(statsRef.current.maxJerk)
         setPotholes(Math.floor(statsRef.current.potholes))
       }
-    }, 100)
+    }, 33)
 
     return () => {
       window.removeEventListener('devicemotion', handleMotion, true)

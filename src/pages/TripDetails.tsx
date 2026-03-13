@@ -1,7 +1,9 @@
+import { useState, useMemo } from 'react'
 import { mockTripTimeline } from '@/data/mockData'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   CloudLightning,
   MapPin,
@@ -11,6 +13,7 @@ import {
   Activity,
   AlertTriangle,
   Smartphone,
+  Shield,
 } from 'lucide-react'
 import { TripCharts } from '@/components/TripCharts'
 import { MapMock } from '@/components/ui-custom/MapMock'
@@ -21,141 +24,164 @@ export default function TripDetails() {
   const { isCapturing, startCapture, stopCapture, data, error, zenScore, phi, maxJerk, potholes } =
     useInertialSensors()
 
+  const sessionId = useMemo(() => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    const rand = (len: number) =>
+      Array.from({ length: len })
+        .map(() => chars[Math.floor(Math.random() * chars.length)])
+        .join('')
+    return `TRP-${rand(4)}-${rand(2)}`
+  }, [])
+
   const displayData = data.length > 0 ? data : mockTripTimeline
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-12 md:pb-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/50 pb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold tracking-tight font-mono">TRP-8842-AX</h1>
+        <div className="w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-3 mb-2">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-mono truncate">
+              {sessionId}
+            </h1>
             <Badge
               variant="outline"
               className={cn(
-                'border',
+                'border whitespace-nowrap',
                 isCapturing
                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                   : 'bg-primary/10 text-primary border-primary/20',
               )}
             >
-              {isCapturing ? 'AO VIVO' : 'CONCLUÍDO'}
+              {isCapturing ? 'GRAVANDO AO VIVO' : 'SESSÃO PRONTA'}
             </Badge>
           </div>
-          <p className="text-muted-foreground flex items-center gap-4 text-sm flex-wrap">
+          <p className="text-muted-foreground flex items-center gap-3 text-sm flex-wrap">
             <span className="flex items-center gap-1">
-              <MapPin className="w-4 h-4" /> Rota 66
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" /> 45 min de duração
+              <MapPin className="w-4 h-4" /> Rota Desconhecida
             </span>
             <span className="flex items-center gap-1 text-purple-500 font-medium bg-purple-500/10 px-2 py-0.5 rounded">
-              <CloudLightning className="w-4 h-4" /> Tempestade
+              <CloudLightning className="w-4 h-4" /> Sem Contexto
             </span>
             {isCapturing && (
-              <span className="flex items-center gap-1 text-emerald-500 font-medium bg-emerald-500/10 px-2 py-0.5 rounded animate-pulse">
-                <Activity className="w-4 h-4" /> Capturando Dados em Tempo Real
+              <span className="flex items-center gap-1 text-emerald-500 font-medium bg-emerald-500/10 px-2 py-0.5 rounded animate-pulse w-full sm:w-auto mt-2 sm:mt-0">
+                <Activity className="w-4 h-4" /> Processando Buffer L0
               </span>
             )}
           </p>
         </div>
-        <div className="flex flex-col md:items-end gap-3 w-full md:w-auto mt-4 md:mt-0">
-          <div className="text-left md:text-right hidden md:block">
-            <p className="text-sm text-muted-foreground">Motorista</p>
-            <p className="text-lg font-bold">James Holden (D-402)</p>
+        <div className="flex flex-col md:items-end gap-3 w-full md:w-auto mt-2 md:mt-0">
+          <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50 text-left md:text-right w-full md:w-auto justify-between md:justify-end">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                Sessão Edge-Only
+              </p>
+              <p className="text-sm font-medium flex items-center gap-1">
+                <Shield className="w-3.5 h-3.5 text-primary" /> Anônima
+              </p>
+            </div>
           </div>
           {isCapturing ? (
-            <Button variant="destructive" onClick={stopCapture} className="gap-2 w-full md:w-auto">
-              <Square className="w-4 h-4" /> Parar Captura
+            <Button
+              size="lg"
+              variant="destructive"
+              onClick={stopCapture}
+              className="gap-2 w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg"
+            >
+              <Square className="w-5 h-5" fill="currentColor" /> Encerrar Captura
             </Button>
           ) : (
             <Button
+              size="lg"
               onClick={startCapture}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto py-6 md:py-4 text-base font-semibold shadow-lg shadow-emerald-900/20"
             >
-              <Play className="w-4 h-4" fill="currentColor" /> Iniciar Captura (Teste Real)
+              <Play className="w-5 h-5" fill="currentColor" /> Iniciar Teste em Campo
             </Button>
           )}
         </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg flex items-center gap-3 animate-in fade-in zoom-in-95">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          <p className="text-sm font-medium">{error}</p>
-        </div>
+        <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Falha no Acesso aos Sensores</AlertTitle>
+          <AlertDescription className="mt-1">{error}</AlertDescription>
+        </Alert>
       )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="glass-panel">
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="glass-panel overflow-hidden">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="w-5 h-5" />
-                  Linha do Tempo Inercial (Sincronizada)
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Smartphone className="w-5 h-5 text-primary" />
+                  Telemetria Inercial de Alta Frequência
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="mt-1">
                   {isCapturing
-                    ? 'Exibindo buffer contínuo (Acelerômetro e Giroscópio).'
-                    : 'Passe o mouse sobre os gráficos para sincronizar pontos de dados em todos os sensores.'}
+                    ? 'Buffer efêmero renderizando aceleração e giroscópio a ~30Hz.'
+                    : 'Toque em Iniciar para capturar dados reais dos sensores do seu smartphone.'}
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-2 sm:px-6">
               <TripCharts data={displayData} animate={!isCapturing} />
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-6">
-          <Card className="glass-panel overflow-hidden flex flex-col h-[400px]">
-            <CardHeader className="pb-2 absolute z-10 bg-background/50 backdrop-blur w-full border-b border-border/50">
-              <CardTitle className="text-sm">Replay do Trajeto</CardTitle>
+          <Card className="glass-panel overflow-hidden flex flex-col h-[300px] sm:h-[400px]">
+            <CardHeader className="pb-2 absolute z-10 bg-background/60 backdrop-blur-md w-full border-b border-border/50">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <MapPin className="w-4 h-4" /> Replay do Trajeto
+              </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 flex-1 relative">
+            <CardContent className="p-0 flex-1 relative bg-muted/10">
               <MapMock mode="default" />
+              {!isCapturing && data.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[2px]">
+                  <p className="text-xs font-mono text-muted-foreground border border-border bg-background px-3 py-1.5 rounded-full shadow-sm">
+                    AGUARDANDO DADOS
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <Card className="glass-panel relative overflow-hidden">
+          <Card className="glass-panel relative overflow-hidden shadow-sm">
             {isCapturing && (
-              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full" />
             )}
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Contexto da Viagem e Resumo</CardTitle>
+            <CardHeader className="pb-3 border-b border-border/30">
+              <CardTitle className="text-base">Métricas do Percurso L1</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm relative z-10">
-              <div className="flex justify-between border-b border-border/50 pb-2 bg-purple-500/5 p-2 rounded -mx-2">
-                <span className="text-muted-foreground">Impacto Climático</span>
-                <span className="font-mono text-purple-500 font-medium">
-                  Multiplicador de Severidade de 2.0x
+            <CardContent className="space-y-4 text-sm relative z-10 pt-4">
+              <div className="flex justify-between items-center group">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Activity className="w-4 h-4" /> Solavanco Máx (Jerk)
+                </span>
+                <span className="font-mono text-destructive font-medium flex items-center gap-1">
+                  {isCapturing || data.length > 0 ? maxJerk.toFixed(1) : '0.0'}{' '}
+                  <span className="text-[10px] text-muted-foreground">da/dt</span>
                 </span>
               </div>
 
-              <div className="flex justify-between border-b border-border/50 pb-2">
-                <span className="text-muted-foreground">Solavanco Máx (Jerk)</span>
-                <span className="font-mono text-destructive flex items-center gap-1">
-                  {isCapturing || data.length > 0 ? maxJerk.toFixed(1) : '18.4'} da/dt
-                  {!isCapturing && data.length === 0 && (
-                    <Badge variant="destructive" className="h-4 text-[10px] px-1 ml-1">
-                      AJUSTADO
-                    </Badge>
-                  )}
+              <div className="flex justify-between items-center group">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4" /> Anomalias de Impacto
+                </span>
+                <span className="font-mono text-amber-500 font-medium bg-amber-500/10 px-2 py-0.5 rounded">
+                  {isCapturing || data.length > 0 ? potholes : '0'} detectadas
                 </span>
               </div>
 
-              <div className="flex justify-between border-b border-border/50 pb-2">
-                <span className="text-muted-foreground">Impactos em Buracos</span>
-                <span className="font-mono text-amber-500">
-                  {isCapturing || data.length > 0 ? potholes : '2'} (Nível &gt; 2.0g)
-                </span>
-              </div>
-
-              <div className="flex justify-between border-b border-border/50 pb-2">
-                <span className="text-muted-foreground">PHI (Índice de Saúde do Pavimento)</span>
+              <div className="flex justify-between items-center group pt-2 border-t border-border/30">
+                <span className="text-muted-foreground font-medium">Índice de Saúde (PHI)</span>
                 <span
                   className={cn(
-                    'font-mono font-medium transition-colors',
+                    'text-lg font-mono font-bold transition-colors',
                     phi < 80
                       ? 'text-destructive'
                       : phi < 95
@@ -163,15 +189,18 @@ export default function TripDetails() {
                         : 'text-emerald-500',
                   )}
                 >
-                  {isCapturing || data.length > 0 ? Math.round(phi) : '85'}
+                  {isCapturing || data.length > 0 ? Math.round(phi) : '100'}
+                  <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">
+                    /100
+                  </span>
                 </span>
               </div>
 
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Pontuação Zen da Viagem</span>
+              <div className="flex justify-between items-center group">
+                <span className="text-muted-foreground font-medium">Driver Zen Score</span>
                 <span
                   className={cn(
-                    'font-mono font-medium transition-colors',
+                    'text-lg font-mono font-bold transition-colors',
                     zenScore < 80
                       ? 'text-destructive'
                       : zenScore < 95
@@ -179,7 +208,10 @@ export default function TripDetails() {
                         : 'text-emerald-500',
                   )}
                 >
-                  {isCapturing || data.length > 0 ? Math.round(zenScore) : '64 (Penalizado)'}
+                  {isCapturing || data.length > 0 ? Math.round(zenScore) : '100'}
+                  <span className="text-xs text-muted-foreground ml-1 font-sans font-normal">
+                    pts
+                  </span>
                 </span>
               </div>
             </CardContent>
