@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import {
   Activity,
   Car,
@@ -7,12 +8,14 @@ import {
   CloudRain,
   CloudLightning,
   CloudFog,
+  Cpu,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
 import { ZenGauge } from '@/components/ui-custom/ZenGauge'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { EventBadge } from '@/components/ui-custom/EventBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { mockKPIs, mockRecentEvents, calculateSeverity, getSeverityLabel } from '@/data/mockData'
 
 const WeatherIcon = ({ weather, className }: { weather: string; className?: string }) => {
@@ -44,9 +47,17 @@ const WeatherLabel = ({ weather }: { weather: string }) => {
 export default function Index() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Executive Overview</h1>
-        <p className="text-muted-foreground">Real-time telemetry and fleet intelligence.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Executive Overview</h1>
+          <p className="text-muted-foreground">Real-time telemetry and fleet intelligence.</p>
+        </div>
+        <Button asChild variant="outline" className="gap-2">
+          <Link to="/sdk">
+            <Cpu className="w-4 h-4" />
+            Orbis SDK Management
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

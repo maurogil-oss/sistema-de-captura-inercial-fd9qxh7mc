@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -7,6 +7,7 @@ import Index from './pages/Index'
 import FleetAnalytics from './pages/FleetAnalytics'
 import CityInfrastructure from './pages/CityInfrastructure'
 import TripDetails from './pages/TripDetails'
+import OrbisSDK from './pages/OrbisSDK'
 import NotFound from './pages/NotFound'
 import { SimulationProvider } from './stores/SimulationContext'
 
@@ -22,7 +23,7 @@ const App = () => (
             <Route path="/fleet" element={<FleetAnalytics />} />
             <Route path="/city" element={<CityInfrastructure />} />
             <Route path="/trip/latest" element={<TripDetails />} />
-            {/* Redirects or other routes can be added here */}
+            <Route path="/sdk" element={<OrbisSDK />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
