@@ -20,25 +20,25 @@ import { cn } from '@/lib/utils'
 const LAYER_DATA = [
   {
     title: 'Layer 0: Raw Data',
-    desc: 'Ephemeral buffer stored locally on the device. Contains high-frequency (60Hz) timestamp_ms, accel, gyro, and gps streams. Cleared after processing unless an event triggers a clip saving.',
+    desc: 'Ephemeral buffer stored locally on the device. Contains high-frequency 60Hz (60 samples per second) streams: accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, and gps. Cleared after processing unless an event triggers a clip saving.',
     badge: 'Local Buffer',
     theme: 'primary',
   },
   {
-    title: 'Layer 1: Telemetry Events',
-    desc: 'JSON packets sent to the cloud. Contains event classifications (HARD_BRAKE, RAPID_ACCEL, HARD_CORNERING, POTHOLE_IMPACT, PHONE_USAGE), base severity (1-10), location, and speed. Includes the 5s data clip.',
+    title: 'Layer 1: Telemetric Events',
+    desc: 'JSON packets sent to the cloud. Contains event classifications (Hard Brake, Rapid Accel, Hard Cornering, Pothole Impact, Phone Usage), base severity (1-10), location, and speed. Includes the 5s data clip.',
     badge: 'Cloud Ingestion',
     theme: 'blue',
   },
   {
-    title: 'Layer 2: Trip Data',
-    desc: 'Events aggregated into continuous trips with distance_km, duration_min, and idle_time_min. Enriched with Environmental Context Auditor which adjusts event severity based on weather_condition.',
+    title: 'Layer 2: Trip Context',
+    desc: 'Events aggregated into continuous trips. Includes Trip ID, Driver ID, Distance, Duration, Idle Time, Weather Condition. Enriched with Environmental Context Auditor which adjusts event severity.',
     badge: 'Data Enrichment',
     theme: 'amber',
   },
   {
     title: 'Layer 3: Business Intelligence',
-    desc: 'Final computed metrics for dashboards. Includes Driver Zen Score, Pavement Health Index (PHI), Carbon Footprint, and Wear & Tear Index.',
+    desc: 'Final computed metrics for dashboards. Includes Driver Zen Score, Carbon Footprint, Wear & Tear Index, and Pavement Health Index (PHI).',
     badge: 'Analytics View',
     theme: 'purple',
   },
@@ -87,7 +87,7 @@ export default function OrbisSDK() {
       <Tabs defaultValue="integration" className="w-full">
         <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="integration">Integration</TabsTrigger>
-          <TabsTrigger value="edge">Edge AI Engine</TabsTrigger>
+          <TabsTrigger value="edge">Edge AI Processing</TabsTrigger>
           <TabsTrigger value="catalog">Data Catalog</TabsTrigger>
         </TabsList>
 
@@ -124,7 +124,8 @@ export default function OrbisSDK() {
                     <h4 className="font-medium text-sm">Traffic Optimization Active</h4>
                     <p className="text-xs text-muted-foreground mt-1">
                       Achieving <strong>99.4% data reduction</strong> by transmitting only event
-                      clips (2s before / 3s after trigger) instead of raw 60Hz streams.
+                      clips (2s before / 3s after trigger) instead of raw 60Hz (60 samples per
+                      second) streams.
                     </p>
                   </div>
                 </div>
@@ -173,7 +174,7 @@ export default function OrbisSDK() {
               {
                 title: 'Capture',
                 value: '60Hz',
-                desc: 'Local polling',
+                desc: '60 samples/sec',
                 icon: Activity,
                 color: 'text-blue-500',
               },
@@ -221,7 +222,7 @@ export default function OrbisSDK() {
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">Magnitude of Acceleration (Gravity Filter)</h4>
+                  <h4 className="font-semibold mb-2">High-Pass Filter (Gravity Removal)</h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
                     |a| = √(x² + y² + z²) - 1g
                   </p>
@@ -230,7 +231,9 @@ export default function OrbisSDK() {
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">Jerk Calculation (Rate of Change)</h4>
+                  <h4 className="font-semibold mb-2">
+                    Jerk Calculation (Sudden Braking/Acceleration)
+                  </h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
                     da/dt = (a₂ - a₁) / Δt
                   </p>
@@ -240,7 +243,7 @@ export default function OrbisSDK() {
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">Centrifugal Force (Cornering)</h4>
+                  <h4 className="font-semibold mb-2">Centrifugal Force (Lateral G-Force)</h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
                     F_c = m * v² / r
                   </p>
@@ -249,7 +252,9 @@ export default function OrbisSDK() {
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">FFT Analysis (Vertical Impact)</h4>
+                  <h4 className="font-semibold mb-2">
+                    Fast Fourier Transform (FFT) for Pothole Detection
+                  </h4>
                   <p className="text-sm text-muted-foreground font-mono bg-background p-2 rounded mb-2 border border-border/50">
                     X(k) = Σ x(n) e^(-i2πkn/N)
                   </p>

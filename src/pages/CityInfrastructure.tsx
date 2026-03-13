@@ -17,8 +17,10 @@ export default function CityInfrastructure() {
             <CardHeader className="pb-2 border-b border-border/50 z-10 bg-card/50 backdrop-blur absolute w-full">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>City Maintenance 360: Pavement Health Index</CardTitle>
-                  <CardDescription>Pothole impacts mapped via inertial FFT</CardDescription>
+                  <CardTitle>Pothole Mapping / 360 Maintenance</CardTitle>
+                  <CardDescription>
+                    Pavement Health Index (PHI) mapped via inertial FFT
+                  </CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-background">
                   Risk Mode
@@ -41,17 +43,46 @@ export default function CityInfrastructure() {
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { zone: 'Sector 4A', reason: 'High Pothole Density', phi: 32 },
-                { zone: 'Main Intersect', reason: 'Near-Miss Index Spike', phi: 85 },
+                {
+                  zone: 'Sector 4A',
+                  reason: 'High Pothole Density',
+                  phi: 32,
+                  severity: 'High',
+                  volume: '14,500/day',
+                },
+                {
+                  zone: 'Main Intersect',
+                  reason: 'Near-Miss Index Spike',
+                  phi: 85,
+                  severity: 'Critical',
+                  volume: '42,000/day',
+                },
               ].map((z) => (
                 <div key={z.zone} className="p-3 bg-muted/30 rounded-lg border border-border/50">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold">{z.zone}</span>
+                    <div>
+                      <span className="font-bold">{z.zone}</span>
+                      <div className="flex gap-3 text-[10px] mt-1 text-muted-foreground font-mono">
+                        <span>
+                          Severity:{' '}
+                          <span
+                            className={
+                              z.severity === 'Critical' ? 'text-destructive' : 'text-amber-500'
+                            }
+                          >
+                            {z.severity}
+                          </span>
+                        </span>
+                        <span>
+                          Traffic Volume: <span className="text-foreground">{z.volume}</span>
+                        </span>
+                      </div>
+                    </div>
                     <Badge variant={z.phi < 50 ? 'destructive' : 'secondary'} className="font-mono">
                       PHI {z.phi}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{z.reason}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{z.reason}</p>
                 </div>
               ))}
             </CardContent>
