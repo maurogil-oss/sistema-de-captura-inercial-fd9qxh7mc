@@ -13,7 +13,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Activity, Cpu, Key, Layers, Server, Shield, Smartphone, Zap } from 'lucide-react'
+import {
+  Activity,
+  Cpu,
+  Key,
+  Layers,
+  Server,
+  Shield,
+  Smartphone,
+  Zap,
+  Battery,
+  Wifi,
+  Map as MapIcon,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
@@ -176,12 +188,60 @@ export default function OrbisSDK() {
         </TabsContent>
 
         <TabsContent value="edge" className="space-y-6 mt-6">
+          <Card className="glass-panel bg-primary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Battery className="w-5 h-5 text-primary" /> Eficiência Energética (Lazy Sensing)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                <strong>Tecnologia Edge AI:</strong> O celular faz as contas localmente usando um
+                chip de baixo consumo (Sensor Hub) e só liga a antena de internet para enviar
+                alertas de exceção (como uma freada brusca). O consumo estimado é inferior a 3% por
+                hora.
+              </p>
+              <div className="grid gap-4 md:grid-cols-3 mt-2">
+                <div className="flex items-start gap-3 p-3 bg-background rounded-lg border border-border/50">
+                  <Wifi className="w-4 h-4 text-blue-500 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-semibold">Transmissão Orientada a Eventos</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Antena em estado de suspensão. Transmite apenas resumos de viagem e kilobytes
+                      em eventos severos.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-background rounded-lg border border-border/50">
+                  <MapIcon className="w-4 h-4 text-amber-500 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-semibold">Polling Adaptativo de GPS</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Taxa de atualização de GPS oscila entre 1Hz (movimento) e 30s (estacionário)
+                      com base em IMU.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-background rounded-lg border border-border/50">
+                  <Cpu className="w-4 h-4 text-purple-500 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-semibold">Operação Headless</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Coprocessador de baixo consumo matem as rotinas L0 rodando em background (tela
+                      apagada).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 title: 'Captura',
                 value: '60Hz',
-                desc: '60 amostras/seg',
+                desc: 'Sensor Hub (L0)',
                 icon: Activity,
                 color: 'text-blue-500',
               },

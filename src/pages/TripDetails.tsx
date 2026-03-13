@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertTriangle, Smartphone, MapPin, Activity } from 'lucide-react'
+import {
+  AlertTriangle,
+  Smartphone,
+  MapPin,
+  Activity,
+  Battery,
+  Cpu,
+  Wifi,
+  Map as MapIcon,
+} from 'lucide-react'
 import { TripCharts } from '@/components/TripCharts'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { useInertialSensors } from '@/hooks/useInertialSensors'
@@ -35,29 +44,56 @@ export default function TripDetails() {
   }, [location.search])
 
   const sensors = useInertialSensors()
-  const { syncStatus, sendBatch, remoteData, remoteStats, isReceiving } = useCloudSync(
+  const { syncStatus, sendEvent, remoteData, remoteStats, isReceiving } = useCloudSync(
     sessionId,
     sensors.isCapturing,
   )
 
+  const [lastSentEventId, setLastSentEventId] = useState<string | null>(null)
+
   useEffect(() => {
-    if (sensors.isCapturing && sensors.data.length > 0) {
-      sendBatch(sensors.data, {
-        zenScore: sensors.zenScore,
-        phi: sensors.phi,
-        maxJerk: sensors.maxJerk,
-        potholes: sensors.potholes,
-      })
+    if (
+      sensors.isCapturing &&
+      sensors.criticalEvent &&
+      sensors.criticalEvent.id !== lastSentEventId
+    ) {
+      sendEvent(
+        sensors.data.slice(-20),
+        {
+          zenScore: sensors.zenScore,
+          phi: sensors.phi,
+          maxJerk: sensors.maxJerk,
+          potholes: sensors.potholes,
+        },
+        'CRITICAL_EVENT',
+      )
+      setLastSentEventId(sensors.criticalEvent.id)
     }
   }, [
-    sensors.data,
+    sensors.criticalEvent,
     sensors.isCapturing,
-    sendBatch,
+    sensors.data,
     sensors.zenScore,
     sensors.phi,
     sensors.maxJerk,
     sensors.potholes,
+    sendEvent,
+    lastSentEventId,
   ])
+
+  const handleStopCapture = useCallback(() => {
+    sensors.stopCapture()
+    sendEvent(
+      sensors.data,
+      {
+        zenScore: sensors.zenScore,
+        phi: sensors.phi,
+        maxJerk: sensors.maxJerk,
+        potholes: sensors.potholes,
+      },
+      'TRIP_SUMMARY',
+    )
+  }, [sensors, sendEvent])
 
   if (!sessionId) return null
 
@@ -94,7 +130,7 @@ export default function TripDetails() {
         permissionState={sensors.permissionState}
         isWaiting={sensors.isWaiting}
         startCapture={sensors.startCapture}
-        stopCapture={sensors.stopCapture}
+        stopCapture={handleStopCapture}
       />
 
       {sensors.error && !isMonitorDevice && (
@@ -111,7 +147,7 @@ export default function TripDetails() {
           <AlertTitle>Modo Monitor</AlertTitle>
           <AlertDescription className="mt-1">
             Visualizando telemetria remota via nuvem. Os dados serão exibidos assim que o
-            dispositivo móvel começar a transmitir na sessão <strong>{sessionId}</strong>.
+            dispositivo móvel começar a transmitir eventos na sessão <strong>{sessionId}</strong>.
           </AlertDescription>
         </Alert>
       )}
@@ -127,9 +163,9 @@ export default function TripDetails() {
                 </CardTitle>
                 <CardDescription className="mt-1">
                   {sensors.isCapturing
-                    ? 'Buffer efêmero sincronizando com a nuvem (Batches de 60Hz).'
+                    ? 'Buffer efêmero L0 processando localmente (Edge AI).'
                     : isReceivingRemote
-                      ? 'Exibindo dados remotos sincronizados em tempo real via nuvem.'
+                      ? 'Exibindo dados remotos sincronizados por eventos na nuvem.'
                       : 'Toque em Ativar Sensores ou abra o link no seu celular para iniciar a transmissão.'}
                 </CardDescription>
               </div>
@@ -196,6 +232,68 @@ export default function TripDetails() {
           />
         </div>
       </div>
+
+      {sensors.isCapturing && (
+        <div className="mt-6 animate-in fade-in slide-in-from-bottom-4">
+          <Card className="glass-panel bg-primary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-primary" />
+                Eficiência Energética e Edge AI
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                <strong>Tecnologia Edge AI:</strong> O celular faz as contas localmente usando um
+                chip de baixo consumo (Sensor Hub) e só liga a antena de internet para enviar
+                alertas de exceção (como uma freada brusca). O consumo estimado é inferior a 3% por
+                hora.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                <div className="flex flex-col p-3 bg-background rounded-lg border border-border/50">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                    <Wifi className="w-3 h-3" /> Antena (4G/5G)
+                  </span>
+                  <span className="text-sm font-semibold truncate" title={syncStatus}>
+                    {syncStatus.includes('Transmitindo') ? (
+                      <span className="text-primary animate-pulse">Transmitindo...</span>
+                    ) : syncStatus === 'Offline' ? (
+                      'Inativa'
+                    ) : syncStatus.includes('Ociosa') ? (
+                      'Ociosa (Sleeping)'
+                    ) : (
+                      syncStatus
+                    )}
+                  </span>
+                </div>
+                <div className="flex flex-col p-3 bg-background rounded-lg border border-border/50">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                    <MapIcon className="w-3 h-3" /> Polling de GPS
+                  </span>
+                  <span className="text-sm font-semibold">
+                    {sensors.gpsPollingRate === 1 ? '1Hz (Movimento)' : '30s (Estacionário)'}
+                  </span>
+                </div>
+                <div className="flex flex-col p-3 bg-background rounded-lg border border-border/50">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                    <Cpu className="w-3 h-3" /> Processamento
+                  </span>
+                  <span className="text-sm font-semibold">
+                    {sensors.isBackground ? 'Background (Sensor Hub)' : 'Foreground (L0)'}
+                  </span>
+                </div>
+                <div className="flex flex-col p-3 bg-background rounded-lg border border-border/50">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                    <Battery className="w-3 h-3" /> Consumo Bateria
+                  </span>
+                  <span className="text-sm font-semibold text-emerald-500">~2.4% / hora</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

@@ -3,7 +3,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 export type SyncStatus =
   | 'Offline'
   | 'Aguardando dados de telemetria...'
-  | 'Conectado: Recebendo dados'
+  | 'Antena Ociosa (Edge AI)'
+  | 'Transmitindo Evento Crítico'
+  | 'Resumo de Viagem Enviado'
+  | 'Recebendo Evento Crítico'
+  | 'Resumo de Viagem Recebido'
   | 'Conexão Perdida'
   | 'Apenas Local'
 
@@ -15,38 +19,56 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
 
   const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const connectionLostTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const isCapturingRef = useRef(isCapturing)
+
+  useEffect(() => {
+    isCapturingRef.current = isCapturing
+    if (isCapturing) {
+      setSyncStatus('Antena Ociosa (Edge AI)')
+    } else {
+      setSyncStatus('Aguardando dados de telemetria...')
+    }
+  }, [isCapturing])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     const dbKey = `orbis_cloud_db_${sessionId}`
-    setSyncStatus('Aguardando dados de telemetria...')
 
     const processPayload = (payloadStr: string) => {
-      if (isCapturing) return
+      if (isCapturingRef.current) return
       try {
         const payload = JSON.parse(payloadStr)
-        setRemoteData(payload.data)
-        setRemoteStats(payload.stats)
 
+        if (payload.type === 'TRIP_SUMMARY') {
+          setRemoteData(payload.data)
+          setSyncStatus('Resumo de Viagem Recebido')
+        } else {
+          setRemoteData((prev) => {
+            const merged = [...prev, ...payload.data]
+            return merged.slice(-60) // Keep standard buffer size for UI
+          })
+          setSyncStatus('Recebendo Evento Crítico')
+        }
+
+        setRemoteStats(payload.stats)
         setIsReceiving(true)
-        setSyncStatus('Conectado: Recebendo dados')
 
         if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
         receivingTimeoutRef.current = setTimeout(() => {
           setIsReceiving(false)
-        }, 1500)
+          if (!isCapturingRef.current) setSyncStatus('Aguardando dados de telemetria...')
+        }, 2500)
 
         if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
         connectionLostTimeoutRef.current = setTimeout(() => {
-          setSyncStatus('Conexão Perdida')
-        }, 5000)
+          if (!isCapturingRef.current) setSyncStatus('Conexão Perdida')
+        }, 15000)
       } catch (e) {
         // ignore
       }
     }
 
-    // Cloud database listener mock (cross-tab/cross-window)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === dbKey && e.newValue) {
         processPayload(e.newValue)
@@ -55,40 +77,13 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
 
     window.addEventListener('storage', handleStorageChange)
 
-    const initialData = localStorage.getItem(dbKey)
-    if (initialData && !isCapturing) {
-      try {
-        const payload = JSON.parse(initialData)
-        const isStale = Date.now() - payload.timestamp > 5000
-        if (!isStale) {
-          processPayload(initialData)
-        }
-      } catch (err) {
-        // ignore
-      }
-    }
-
-    // High-frequency fast path (fallback for same browser)
     let channel: BroadcastChannel | null = null
     if (window.BroadcastChannel) {
       channel = new BroadcastChannel('orbis_cloud_sync')
       channel.onmessage = (event) => {
         const { type, sId, payload } = event.data
-        if (sId === sessionId && type === 'SYNC_BATCH' && !isCapturing) {
-          setRemoteData(payload.data)
-          setRemoteStats(payload.stats)
-          setIsReceiving(true)
-          setSyncStatus('Conectado: Recebendo dados')
-
-          if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
-          receivingTimeoutRef.current = setTimeout(() => {
-            setIsReceiving(false)
-          }, 1500)
-
-          if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
-          connectionLostTimeoutRef.current = setTimeout(() => {
-            setSyncStatus('Conexão Perdida')
-          }, 5000)
+        if (sId === sessionId && type === 'SYNC_EVENT' && !isCapturingRef.current) {
+          processPayload(JSON.stringify(payload))
         }
       }
     }
@@ -99,34 +94,39 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
       if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
       if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
     }
-  }, [sessionId, isCapturing])
+  }, [sessionId])
 
-  const sendBatch = useCallback(
-    (data: any[], stats: any) => {
-      if (isCapturing) {
+  const sendEvent = useCallback(
+    (data: any[], stats: any, type: 'CRITICAL_EVENT' | 'TRIP_SUMMARY') => {
+      if (isCapturingRef.current) {
         try {
-          const payload = { data, stats, timestamp: Date.now() }
+          const payload = { data, stats, type, timestamp: Date.now() }
           // Write to cloud mock
           localStorage.setItem(`orbis_cloud_db_${sessionId}`, JSON.stringify(payload))
 
           if (window.BroadcastChannel) {
             const channel = new BroadcastChannel('orbis_cloud_sync')
             channel.postMessage({
-              type: 'SYNC_BATCH',
+              type: 'SYNC_EVENT',
               sId: sessionId,
               payload,
             })
             channel.close()
           }
 
-          setSyncStatus('Conectado: Recebendo dados')
+          setSyncStatus(
+            type === 'CRITICAL_EVENT' ? 'Transmitindo Evento Crítico' : 'Resumo de Viagem Enviado',
+          )
+          setTimeout(() => {
+            if (isCapturingRef.current) setSyncStatus('Antena Ociosa (Edge AI)')
+          }, 2000)
         } catch (err) {
           setSyncStatus('Apenas Local')
         }
       }
     },
-    [sessionId, isCapturing],
+    [sessionId],
   )
 
-  return { syncStatus, sendBatch, remoteData, remoteStats, isReceiving }
+  return { syncStatus, sendEvent, remoteData, remoteStats, isReceiving }
 }
