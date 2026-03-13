@@ -38,8 +38,10 @@ export function TripHeader(props: TripHeaderProps) {
   }
 
   const getSyncBadge = () => {
-    if (props.syncStatus === 'Receiving Live Data' || props.isReceiving) {
-      const text = props.isCapturing ? '🟢 Transmitting Live Data' : '🟢 Receiving Live Data'
+    if (props.syncStatus === 'Conectado: Recebendo dados' || props.isReceiving) {
+      const text = props.isCapturing
+        ? '🟢 Transmitindo Dados (Cloud)'
+        : '🟢 Conectado: Recebendo dados'
       return (
         <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm">
           <span className="relative flex h-2 w-2">
@@ -50,17 +52,17 @@ export function TripHeader(props: TripHeaderProps) {
         </Badge>
       )
     }
-    if (props.syncStatus === 'Connection Lost') {
+    if (props.syncStatus === 'Conexão Perdida') {
       return (
         <Badge variant="destructive" className="gap-1.5">
           <span className="relative flex h-2 w-2">
             <span className="relative inline-flex rounded-full h-2 w-2 bg-red-200"></span>
           </span>
-          🔴 Connection Lost
+          🔴 Conexão Perdida
         </Badge>
       )
     }
-    if (props.syncStatus === 'Waiting for telemetry data...') {
+    if (props.syncStatus === 'Aguardando dados de telemetria...') {
       return (
         <Badge
           variant="outline"
@@ -69,11 +71,11 @@ export function TripHeader(props: TripHeaderProps) {
           <span className="relative flex h-2 w-2">
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
           </span>
-          🟡 Waiting for telemetry data...
+          🟡 Aguardando dados de telemetria...
         </Badge>
       )
     }
-    if (props.syncStatus === 'Local-Only') {
+    if (props.syncStatus === 'Apenas Local') {
       return (
         <Badge variant="destructive" className="gap-1">
           <CloudOff className="w-3 h-3" /> Apenas Local

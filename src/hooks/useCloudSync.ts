@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 export type SyncStatus =
   | 'Offline'
-  | 'Waiting for telemetry data...'
-  | 'Receiving Live Data'
-  | 'Connection Lost'
-  | 'Local-Only'
+  | 'Aguardando dados de telemetria...'
+  | 'Conectado: Recebendo dados'
+  | 'Conexão Perdida'
+  | 'Apenas Local'
 
 export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
@@ -13,67 +13,115 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [remoteStats, setRemoteStats] = useState<any>(null)
   const [isReceiving, setIsReceiving] = useState(false)
 
-  const channelRef = useRef<BroadcastChannel | null>(null)
   const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const connectionLostTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.BroadcastChannel) {
+    if (typeof window === 'undefined') return
+
+    const dbKey = `orbis_cloud_db_${sessionId}`
+    setSyncStatus('Aguardando dados de telemetria...')
+
+    const processPayload = (payloadStr: string) => {
+      if (isCapturing) return
       try {
-        channelRef.current = new BroadcastChannel('orbis_cloud_sync')
-        setSyncStatus('Waiting for telemetry data...')
+        const payload = JSON.parse(payloadStr)
+        setRemoteData(payload.data)
+        setRemoteStats(payload.stats)
 
-        const handleMessage = (event: MessageEvent) => {
-          const { type, sId, payload } = event.data
-          if (sId === sessionId && type === 'SYNC_BATCH') {
-            if (!isCapturing) {
-              setRemoteData(payload.data)
-              setRemoteStats(payload.stats)
+        setIsReceiving(true)
+        setSyncStatus('Conectado: Recebendo dados')
 
-              setIsReceiving(true)
-              setSyncStatus('Receiving Live Data')
+        if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
+        receivingTimeoutRef.current = setTimeout(() => {
+          setIsReceiving(false)
+        }, 1500)
 
-              if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
-              receivingTimeoutRef.current = setTimeout(() => {
-                setIsReceiving(false)
-              }, 1500)
+        if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
+        connectionLostTimeoutRef.current = setTimeout(() => {
+          setSyncStatus('Conexão Perdida')
+        }, 5000)
+      } catch (e) {
+        // ignore
+      }
+    }
 
-              if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
-              connectionLostTimeoutRef.current = setTimeout(() => {
-                setSyncStatus('Connection Lost')
-              }, 5000)
-            }
-          }
-        }
+    // Cloud database listener mock (cross-tab/cross-window)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === dbKey && e.newValue) {
+        processPayload(e.newValue)
+      }
+    }
 
-        channelRef.current.addEventListener('message', handleMessage)
+    window.addEventListener('storage', handleStorageChange)
 
-        return () => {
-          if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
-          if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
-          channelRef.current?.removeEventListener('message', handleMessage)
-          channelRef.current?.close()
+    const initialData = localStorage.getItem(dbKey)
+    if (initialData && !isCapturing) {
+      try {
+        const payload = JSON.parse(initialData)
+        const isStale = Date.now() - payload.timestamp > 5000
+        if (!isStale) {
+          processPayload(initialData)
         }
       } catch (err) {
-        setSyncStatus('Local-Only')
+        // ignore
       }
-    } else {
-      setSyncStatus('Local-Only')
+    }
+
+    // High-frequency fast path (fallback for same browser)
+    let channel: BroadcastChannel | null = null
+    if (window.BroadcastChannel) {
+      channel = new BroadcastChannel('orbis_cloud_sync')
+      channel.onmessage = (event) => {
+        const { type, sId, payload } = event.data
+        if (sId === sessionId && type === 'SYNC_BATCH' && !isCapturing) {
+          setRemoteData(payload.data)
+          setRemoteStats(payload.stats)
+          setIsReceiving(true)
+          setSyncStatus('Conectado: Recebendo dados')
+
+          if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
+          receivingTimeoutRef.current = setTimeout(() => {
+            setIsReceiving(false)
+          }, 1500)
+
+          if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
+          connectionLostTimeoutRef.current = setTimeout(() => {
+            setSyncStatus('Conexão Perdida')
+          }, 5000)
+        }
+      }
+    }
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      if (channel) channel.close()
+      if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
+      if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
     }
   }, [sessionId, isCapturing])
 
   const sendBatch = useCallback(
     (data: any[], stats: any) => {
-      if (channelRef.current && isCapturing) {
+      if (isCapturing) {
         try {
-          channelRef.current.postMessage({
-            type: 'SYNC_BATCH',
-            sId: sessionId,
-            payload: { data, stats },
-          })
-          setSyncStatus('Receiving Live Data')
+          const payload = { data, stats, timestamp: Date.now() }
+          // Write to cloud mock
+          localStorage.setItem(`orbis_cloud_db_${sessionId}`, JSON.stringify(payload))
+
+          if (window.BroadcastChannel) {
+            const channel = new BroadcastChannel('orbis_cloud_sync')
+            channel.postMessage({
+              type: 'SYNC_BATCH',
+              sId: sessionId,
+              payload,
+            })
+            channel.close()
+          }
+
+          setSyncStatus('Conectado: Recebendo dados')
         } catch (err) {
-          setSyncStatus('Local-Only')
+          setSyncStatus('Apenas Local')
         }
       }
     },

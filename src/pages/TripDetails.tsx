@@ -108,10 +108,10 @@ export default function TripDetails() {
       {isMonitorDevice && !sensors.isCapturing && (
         <Alert className="bg-blue-500/10 border-blue-500/50 text-blue-600 dark:text-blue-400 animate-in fade-in slide-in-from-top-2">
           <Activity className="h-4 w-4 text-blue-500" />
-          <AlertTitle>Monitor Mode</AlertTitle>
+          <AlertTitle>Modo Monitor</AlertTitle>
           <AlertDescription className="mt-1">
-            Visualizando telemetria remota. Os dados serão exibidos assim que o dispositivo móvel
-            começar a transmitir na sessão <strong>{sessionId}</strong>.
+            Visualizando telemetria remota via nuvem. Os dados serão exibidos assim que o
+            dispositivo móvel começar a transmitir na sessão <strong>{sessionId}</strong>.
           </AlertDescription>
         </Alert>
       )}
