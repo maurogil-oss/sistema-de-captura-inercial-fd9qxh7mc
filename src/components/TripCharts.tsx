@@ -1,19 +1,12 @@
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 
 interface TripChartsProps {
   data: any[]
+  animate?: boolean
 }
 
-export function TripCharts({ data }: TripChartsProps) {
+export function TripCharts({ data, animate = true }: TripChartsProps) {
   const chartConfig = {
     jerk: { label: 'Solavanco (da/dt)', color: 'hsl(var(--primary))' },
     gForceZ: { label: 'Força G (Z)', color: 'hsl(var(--destructive))' },
@@ -48,7 +41,7 @@ export function TripCharts({ data }: TripChartsProps) {
               stroke="var(--color-jerk)"
               strokeWidth={2}
               dot={false}
-              isAnimationActive={true}
+              isAnimationActive={animate}
             />
           </LineChart>
         </ChartContainer>
@@ -80,7 +73,7 @@ export function TripCharts({ data }: TripChartsProps) {
               stroke="var(--color-gForceZ)"
               strokeWidth={2}
               dot={false}
-              isAnimationActive={true}
+              isAnimationActive={animate}
             />
           </LineChart>
         </ChartContainer>
@@ -107,7 +100,7 @@ export function TripCharts({ data }: TripChartsProps) {
               stroke="var(--color-lateralForce)"
               strokeWidth={2}
               dot={false}
-              isAnimationActive={true}
+              isAnimationActive={animate}
             />
           </LineChart>
         </ChartContainer>
