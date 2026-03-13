@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
-export type SyncStatus = 'Offline' | 'Waiting' | 'Connected' | 'Syncing' | 'Local-Only'
+export type SyncStatus =
+  | 'Offline'
+  | 'Waiting for telemetry data...'
+  | 'Receiving Live Data'
+  | 'Connection Lost'
+  | 'Local-Only'
 
 export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
@@ -9,14 +14,14 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [isReceiving, setIsReceiving] = useState(false)
 
   const channelRef = useRef<BroadcastChannel | null>(null)
-  const syncTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const connectionLostTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.BroadcastChannel) {
       try {
         channelRef.current = new BroadcastChannel('orbis_cloud_sync')
-        setSyncStatus('Waiting')
+        setSyncStatus('Waiting for telemetry data...')
 
         const handleMessage = (event: MessageEvent) => {
           const { type, sId, payload } = event.data
@@ -26,25 +31,26 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
               setRemoteStats(payload.stats)
 
               setIsReceiving(true)
+              setSyncStatus('Receiving Live Data')
+
               if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
               receivingTimeoutRef.current = setTimeout(() => {
                 setIsReceiving(false)
               }, 1500)
-            }
 
-            setSyncStatus('Syncing')
-            if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current)
-            syncTimeoutRef.current = setTimeout(() => {
-              setSyncStatus('Connected')
-            }, 300)
+              if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
+              connectionLostTimeoutRef.current = setTimeout(() => {
+                setSyncStatus('Connection Lost')
+              }, 5000)
+            }
           }
         }
 
         channelRef.current.addEventListener('message', handleMessage)
 
         return () => {
-          if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current)
           if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
+          if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
           channelRef.current?.removeEventListener('message', handleMessage)
           channelRef.current?.close()
         }
@@ -65,12 +71,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
             sId: sessionId,
             payload: { data, stats },
           })
-          setSyncStatus('Syncing')
-
-          if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current)
-          syncTimeoutRef.current = setTimeout(() => {
-            setSyncStatus('Connected')
-          }, 300)
+          setSyncStatus('Receiving Live Data')
         } catch (err) {
           setSyncStatus('Local-Only')
         }

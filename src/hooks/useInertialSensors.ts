@@ -25,13 +25,17 @@ export function useInertialSensors() {
   const dataRef = useRef<SensorDataPoint[]>([])
   const statsRef = useRef({ zenScore: 100, phi: 100, maxJerk: 0, potholes: 0 })
   const eventCountRef = useRef(0)
-  const checkTimeoutRef = useRef<NodeJS.Timeout>()
-  const rafRef = useRef<number>()
+  const checkTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const rafRef = useRef<number | undefined>(undefined)
 
-  // Silent check for hardware support on mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && !window.DeviceMotionEvent) {
-      setPermissionState('unsupported')
+    if (typeof window !== 'undefined') {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      )
+      if (!isMobile || !window.DeviceMotionEvent) {
+        setPermissionState('unsupported')
+      }
     }
   }, [])
 
@@ -53,7 +57,10 @@ export function useInertialSensors() {
     setError(null)
 
     try {
-      if (!window.DeviceMotionEvent) {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      )
+      if (!isMobile || !window.DeviceMotionEvent) {
         setPermissionState('unsupported')
         setError('Sensores não suportados neste dispositivo ou navegador.')
         setIsWaiting(false)

@@ -108,10 +108,10 @@ export default function TripDetails() {
       {isMonitorDevice && !sensors.isCapturing && (
         <Alert className="bg-blue-500/10 border-blue-500/50 text-blue-600 dark:text-blue-400 animate-in fade-in slide-in-from-top-2">
           <Activity className="h-4 w-4 text-blue-500" />
-          <AlertTitle>Modo de Monitoramento Ativo</AlertTitle>
+          <AlertTitle>Monitor Mode</AlertTitle>
           <AlertDescription className="mt-1">
-            Sensores não suportados neste dispositivo. Exibindo painel de monitoramento para a
-            sessão remota <strong>{sessionId}</strong>.
+            Visualizando telemetria remota. Os dados serão exibidos assim que o dispositivo móvel
+            começar a transmitir na sessão <strong>{sessionId}</strong>.
           </AlertDescription>
         </Alert>
       )}

@@ -38,17 +38,29 @@ export function TripHeader(props: TripHeaderProps) {
   }
 
   const getSyncBadge = () => {
-    if (props.syncStatus === 'Syncing' || props.isReceiving)
+    if (props.syncStatus === 'Receiving Live Data' || props.isReceiving) {
+      const text = props.isCapturing ? '🟢 Transmitting Live Data' : '🟢 Receiving Live Data'
       return (
         <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          🟢 Sincronizado
+          {text}
         </Badge>
       )
-    if (props.syncStatus === 'Waiting' || props.syncStatus === 'Connected')
+    }
+    if (props.syncStatus === 'Connection Lost') {
+      return (
+        <Badge variant="destructive" className="gap-1.5">
+          <span className="relative flex h-2 w-2">
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-200"></span>
+          </span>
+          🔴 Connection Lost
+        </Badge>
+      )
+    }
+    if (props.syncStatus === 'Waiting for telemetry data...') {
       return (
         <Badge
           variant="outline"
@@ -57,15 +69,17 @@ export function TripHeader(props: TripHeaderProps) {
           <span className="relative flex h-2 w-2">
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
           </span>
-          🟡 Conectado (Aguardando)
+          🟡 Waiting for telemetry data...
         </Badge>
       )
-    if (props.syncStatus === 'Local-Only')
+    }
+    if (props.syncStatus === 'Local-Only') {
       return (
         <Badge variant="destructive" className="gap-1">
           <CloudOff className="w-3 h-3" /> Apenas Local
         </Badge>
       )
+    }
     return (
       <Badge variant="outline" className="gap-1">
         <CloudOff className="w-3 h-3" /> Offline
