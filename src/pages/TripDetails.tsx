@@ -1,9 +1,9 @@
-import { mockTripTimeline } from '@/data/mockData';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CloudRain, MapPin, Clock } from 'lucide-react';
-import { TripCharts } from '@/components/TripCharts';
-import { MapMock } from '@/components/ui-custom/MapMock';
+import { mockTripTimeline } from '@/data/mockData'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { CloudRain, MapPin, Clock } from 'lucide-react'
+import { TripCharts } from '@/components/TripCharts'
+import { MapMock } from '@/components/ui-custom/MapMock'
 
 export default function TripDetails() {
   return (
@@ -12,12 +12,20 @@ export default function TripDetails() {
         <div>
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold tracking-tight font-mono">TRP-8842-AX</h1>
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">COMPLETED</Badge>
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+              COMPLETED
+            </Badge>
           </div>
           <p className="text-muted-foreground flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> Route 66</span>
-            <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> 45 min duration</span>
-            <span className="flex items-center gap-1 text-amber-500"><CloudRain className="w-4 h-4" /> Heavy Rain</span>
+            <span className="flex items-center gap-1">
+              <MapPin className="w-4 h-4" /> Route 66
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock className="w-4 h-4" /> 45 min duration
+            </span>
+            <span className="flex items-center gap-1 text-amber-500">
+              <CloudRain className="w-4 h-4" /> Heavy Rain
+            </span>
           </p>
         </div>
         <div className="text-right">
@@ -31,7 +39,9 @@ export default function TripDetails() {
           <Card className="glass-panel">
             <CardHeader>
               <CardTitle>Inertial Timeline (Sync)</CardTitle>
-              <CardDescription>Hover over charts to sync data points across all sensors.</CardDescription>
+              <CardDescription>
+                Hover over charts to sync data points across all sensors.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <TripCharts data={mockTripTimeline} />
@@ -60,7 +70,7 @@ export default function TripDetails() {
               </div>
               <div className="flex justify-between border-b border-border/50 pb-2">
                 <span className="text-muted-foreground">Pothole Impacts</span>
-                <span className="font-mono text-amber-500">2 (Lvl > 2.0g)</span>
+                <span className="font-mono text-amber-500">2 (Lvl &gt; 2.0g)</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Trip Zen Score</span>
@@ -71,5 +81,5 @@ export default function TripDetails() {
         </div>
       </div>
     </div>
-  );
+  )
 }
