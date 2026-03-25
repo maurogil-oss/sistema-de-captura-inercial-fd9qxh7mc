@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,24 +26,27 @@ const generateSessionId = () => {
 }
 
 export default function TripDetails() {
-  const location = useLocation()
+  const { sessionId: paramSessionId } = useParams<{ sessionId: string }>()
+  const navigate = useNavigate()
   const { toast } = useToast()
+
   const [sessionId, setSessionId] = useState<string>('')
   const [isAlerting, setIsAlerting] = useState(false)
 
+  // Session ID Management
   useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    let session = params.get('session')
-    if (!session) {
-      session = generateSessionId()
-      window.history.replaceState(null, '', `?session=${session}`)
+    if (!paramSessionId || paramSessionId === 'latest-session') {
+      const newSession = generateSessionId()
+      navigate(`/trip/${newSession}`, { replace: true })
+    } else {
+      setSessionId(paramSessionId)
     }
-    setSessionId(session)
-  }, [location.search])
+  }, [paramSessionId, navigate])
 
   const sensors = useInertialSensors()
   const { syncStatus, sendEvent, remoteData, remoteStats, remoteEventLog, isReceiving } =
     useCloudSync(sessionId, sensors.isCapturing)
+
   const [lastSentEventId, setLastSentEventId] = useState<string | null>(null)
 
   const currentStats = {
@@ -53,6 +56,16 @@ export default function TripDetails() {
     potholes: sensors.potholes,
   }
 
+  // Periodic Telemetry Update (Optimized for Battery vs Real-time smoothness)
+  useEffect(() => {
+    if (!sensors.isCapturing) return
+    const interval = setInterval(() => {
+      sendEvent(sensors.data.slice(-20), currentStats, sensors.eventLog, 'TELEMETRY_UPDATE')
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [sensors.isCapturing, sensors.data, currentStats, sensors.eventLog, sendEvent])
+
+  // Immediate Critical Event Dispatch
   useEffect(() => {
     if (
       sensors.isCapturing &&
@@ -164,9 +177,9 @@ export default function TripDetails() {
               </CardTitle>
               <CardDescription>
                 {sensors.isCapturing
-                  ? 'Processamento local Edge AI.'
-                  : isReceivingRemote
-                    ? 'Dados remotos.'
+                  ? 'Processamento local Edge AI e sync remoto via Skip Cloud.'
+                  : isReceivingRemote || syncStatus === 'Conectado à Nuvem'
+                    ? 'Dados sincronizados via Skip Cloud.'
                     : 'Aguardando início.'}
               </CardDescription>
             </CardHeader>

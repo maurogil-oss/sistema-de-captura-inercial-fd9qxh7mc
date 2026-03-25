@@ -1,16 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { SkipCloud } from '@/lib/skip-cloud'
 import { TripEvent } from './useInertialSensors'
 
 export type SyncStatus =
   | 'Offline'
-  | 'Aguardando dados de telemetria...'
-  | 'Antena Ociosa (Edge AI)'
-  | 'Transmitindo Evento Crítico'
-  | 'Resumo de Viagem Enviado'
-  | 'Recebendo Evento Crítico'
-  | 'Resumo de Viagem Recebido'
-  | 'Conexão Perdida'
-  | 'Apenas Local'
+  | 'Aguardando dados...'
+  | 'Ocioso (Edge AI)'
+  | 'Sincronizando...'
+  | 'Conectado à Nuvem'
+  | 'Recebendo Atualizações'
+  | 'Erro de Conexão'
 
 export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
@@ -20,114 +19,100 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [isReceiving, setIsReceiving] = useState(false)
 
   const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
-  const connectionLostTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const isCapturingRef = useRef(isCapturing)
 
   useEffect(() => {
     isCapturingRef.current = isCapturing
     if (isCapturing) {
-      setSyncStatus('Antena Ociosa (Edge AI)')
+      setSyncStatus('Ocioso (Edge AI)')
     } else {
-      setSyncStatus('Aguardando dados de telemetria...')
+      setSyncStatus('Aguardando dados...')
     }
   }, [isCapturing])
 
+  // Initial fetch and subscription
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !sessionId) return
 
-    const dbKey = `orbis_cloud_db_${sessionId}`
-
-    const processPayload = (payloadStr: string) => {
-      if (isCapturingRef.current) return
+    const fetchInitialData = async () => {
       try {
-        const payload = JSON.parse(payloadStr)
+        const result = await SkipCloud.collection('telemetry').getList(1, 1, {
+          filter: `sessionId = '${sessionId}'`,
+          sort: '-created',
+        })
 
-        if (payload.type === 'TRIP_SUMMARY') {
-          setRemoteData(payload.data)
-          setSyncStatus('Resumo de Viagem Recebido')
-        } else {
-          setRemoteData((prev) => {
-            const merged = [...prev, ...payload.data]
-            return merged.slice(-60)
-          })
-          setSyncStatus('Recebendo Evento Crítico')
+        if (result.items.length > 0 && !isCapturingRef.current) {
+          const latest = result.items[0]
+          if (latest.data) setRemoteData(latest.data)
+          if (latest.stats) setRemoteStats(latest.stats)
+          if (latest.events) setRemoteEventLog(latest.events)
+          setSyncStatus('Conectado à Nuvem')
         }
+      } catch (error) {
+        console.error('Failed to fetch initial telemetry data', error)
+      }
+    }
 
-        setRemoteStats(payload.stats)
-        if (payload.events && Array.isArray(payload.events)) {
-          setRemoteEventLog(payload.events)
-        }
+    fetchInitialData()
+
+    // Subscribe to real-time Skip Cloud (PocketBase) updates
+    const unsubscribe = SkipCloud.collection('telemetry').subscribe(
+      `sessionId = '${sessionId}'`,
+      (event) => {
+        if (isCapturingRef.current) return // Sender doesn't need to receive its own updates
+
+        const payload = event.record
+
+        setRemoteData((prev) => {
+          if (payload.type === 'TRIP_SUMMARY') return payload.data
+          const merged = [...prev, ...(payload.data || [])]
+          return merged.slice(-60)
+        })
+
+        if (payload.stats) setRemoteStats(payload.stats)
+        if (payload.events) setRemoteEventLog(payload.events)
 
         setIsReceiving(true)
+        setSyncStatus('Recebendo Atualizações')
 
         if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
         receivingTimeoutRef.current = setTimeout(() => {
           setIsReceiving(false)
-          if (!isCapturingRef.current) setSyncStatus('Aguardando dados de telemetria...')
+          if (!isCapturingRef.current) setSyncStatus('Conectado à Nuvem')
         }, 2500)
-
-        if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
-        connectionLostTimeoutRef.current = setTimeout(() => {
-          if (!isCapturingRef.current) setSyncStatus('Conexão Perdida')
-        }, 15000)
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === dbKey && e.newValue) {
-        processPayload(e.newValue)
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-
-    let channel: BroadcastChannel | null = null
-    if (window.BroadcastChannel) {
-      channel = new BroadcastChannel('orbis_cloud_sync')
-      channel.onmessage = (event) => {
-        const { type, sId, payload } = event.data
-        if (sId === sessionId && type === 'SYNC_EVENT' && !isCapturingRef.current) {
-          processPayload(JSON.stringify(payload))
-        }
-      }
-    }
+      },
+    )
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      if (channel) channel.close()
+      unsubscribe()
       if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
-      if (connectionLostTimeoutRef.current) clearTimeout(connectionLostTimeoutRef.current)
     }
   }, [sessionId])
 
   const sendEvent = useCallback(
-    (data: any[], stats: any, events: TripEvent[], type: 'CRITICAL_EVENT' | 'TRIP_SUMMARY') => {
-      if (isCapturingRef.current) {
-        try {
-          const payload = { data, stats, events, type, timestamp: Date.now() }
-          localStorage.setItem(`orbis_cloud_db_${sessionId}`, JSON.stringify(payload))
+    async (
+      data: any[],
+      stats: any,
+      events: TripEvent[],
+      type: 'CRITICAL_EVENT' | 'TRIP_SUMMARY' | 'TELEMETRY_UPDATE',
+    ) => {
+      if (!isCapturingRef.current) return
 
-          if (window.BroadcastChannel) {
-            const channel = new BroadcastChannel('orbis_cloud_sync')
-            channel.postMessage({
-              type: 'SYNC_EVENT',
-              sId: sessionId,
-              payload,
-            })
-            channel.close()
-          }
+      try {
+        setSyncStatus('Sincronizando...')
+        await SkipCloud.collection('telemetry').create({
+          sessionId,
+          type,
+          data,
+          stats,
+          events,
+        })
 
-          setSyncStatus(
-            type === 'CRITICAL_EVENT' ? 'Transmitindo Evento Crítico' : 'Resumo de Viagem Enviado',
-          )
-          setTimeout(() => {
-            if (isCapturingRef.current) setSyncStatus('Antena Ociosa (Edge AI)')
-          }, 2000)
-        } catch (err) {
-          setSyncStatus('Apenas Local')
-        }
+        setTimeout(() => {
+          if (isCapturingRef.current) setSyncStatus('Ocioso (Edge AI)')
+        }, 1500)
+      } catch (err) {
+        setSyncStatus('Erro de Conexão')
       }
     },
     [sessionId],

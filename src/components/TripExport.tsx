@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Download, FileText, FileJson } from 'lucide-react'
 import { TripEvent } from '@/hooks/useInertialSensors'
 import { useToast } from '@/hooks/use-toast'
+import { SkipCloud } from '@/lib/skip-cloud'
 
 interface TripExportProps {
   sessionId: string
@@ -13,13 +14,34 @@ interface TripExportProps {
 export function TripExport({ sessionId, stats, events }: TripExportProps) {
   const { toast } = useToast()
 
-  const handleExportJSON = () => {
+  const fetchCloudData = async () => {
+    try {
+      toast({
+        title: 'Obtendo dados...',
+        description: 'Buscando histórico completo na Skip Cloud.',
+      })
+      const result = await SkipCloud.collection('telemetry').getList(1, 1000, {
+        filter: `sessionId = '${sessionId}'`,
+        sort: '-created',
+      })
+      return result.items
+    } catch (e) {
+      console.error('Failed to fetch from cloud', e)
+      return []
+    }
+  }
+
+  const handleExportJSON = async () => {
+    const history = await fetchCloudData()
+
     const payload = JSON.stringify(
       {
         sessionId,
         exportDate: new Date().toISOString(),
+        cloudRecordsCount: history.length,
         summary: stats,
         criticalEvents: events,
+        cloudHistory: history,
       },
       null,
       2,
@@ -29,21 +51,30 @@ export function TripExport({ sessionId, stats, events }: TripExportProps) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `Orbis_Trip_${sessionId}.json`
+    a.download = `Orbis_Cloud_Trip_${sessionId}.json`
     a.click()
     URL.revokeObjectURL(url)
 
     toast({ title: 'Exportação Concluída', description: 'O arquivo JSON foi baixado com sucesso.' })
   }
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const history = await fetchCloudData()
+
     const printWindow = window.open('', '_blank', 'width=800,height=800')
-    if (!printWindow) return
+    if (!printWindow) {
+      toast({
+        title: 'Bloqueador de pop-ups',
+        description: 'Permita pop-ups para gerar o PDF.',
+        variant: 'destructive',
+      })
+      return
+    }
 
     const html = `
       <html>
         <head>
-          <title>Orbis Report - ${sessionId}</title>
+          <title>Orbis Cloud Report - ${sessionId}</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
             h1 { color: #000; border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
@@ -56,12 +87,12 @@ export function TripExport({ sessionId, stats, events }: TripExportProps) {
           </style>
         </head>
         <body>
-          <h1>Relatório de Telemetria Orbis</h1>
+          <h1>Relatório de Telemetria Orbis (Skip Cloud)</h1>
           <div class="metric"><span class="label">ID da Sessão:</span> <span>${sessionId}</span></div>
           <div class="metric"><span class="label">Data de Emissão:</span> <span>${new Date().toLocaleString()}</span></div>
           <div class="metric"><span class="label">Zen Score:</span> <span>${Math.round(stats.zenScore || 100)}/100</span></div>
           <div class="metric"><span class="label">Eventos Críticos:</span> <span>${events.length}</span></div>
-          <div class="metric"><span class="label">Economia de Bateria:</span> <span>~80% (Edge AI Ativo)</span></div>
+          <div class="metric"><span class="label">Sincronizações na Nuvem:</span> <span>${history.length} pacotes</span></div>
           
           <h2>Registro de Eventos</h2>
           ${
@@ -94,7 +125,7 @@ export function TripExport({ sessionId, stats, events }: TripExportProps) {
     <Card className="glass-panel">
       <CardContent className="p-4 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2 mb-2">
-          <Download className="w-4 h-4 text-primary" /> B2B Export Suite
+          <Download className="w-4 h-4 text-primary" /> Skip Cloud Export Suite
         </h3>
         <div className="grid grid-cols-2 gap-3">
           <Button variant="outline" className="w-full text-xs h-9" onClick={handleExportPDF}>

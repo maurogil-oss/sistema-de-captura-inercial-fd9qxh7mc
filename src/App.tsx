@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -22,7 +22,11 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/fleet" element={<FleetAnalytics />} />
             <Route path="/city" element={<CityInfrastructure />} />
-            <Route path="/trip/latest" element={<TripDetails />} />
+
+            {/* Support unique session IDs for real-time Skip Cloud sync */}
+            <Route path="/trip/:sessionId" element={<TripDetails />} />
+            <Route path="/trip/latest" element={<Navigate to="/trip/latest-session" replace />} />
+
             <Route path="/sdk" element={<OrbisSDK />} />
           </Route>
           <Route path="*" element={<NotFound />} />

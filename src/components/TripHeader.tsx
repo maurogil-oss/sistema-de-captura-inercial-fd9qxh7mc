@@ -10,6 +10,7 @@ import {
   Link as LinkIcon,
   MapPin,
   Smartphone,
+  Cloud,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -38,31 +39,39 @@ export function TripHeader(props: TripHeaderProps) {
   }
 
   const getSyncBadge = () => {
-    if (props.syncStatus === 'Conectado: Recebendo dados' || props.isReceiving) {
-      const text = props.isCapturing
-        ? '🟢 Transmitindo Dados (Cloud)'
-        : '🟢 Conectado: Recebendo dados'
+    if (props.syncStatus === 'Sincronizando...') {
       return (
         <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          {text}
+          Sincronizando...
         </Badge>
       )
     }
-    if (props.syncStatus === 'Conexão Perdida') {
+    if (props.syncStatus === 'Conectado à Nuvem' || props.syncStatus === 'Recebendo Atualizações') {
+      return (
+        <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 gap-1.5 shadow-sm">
+          <Cloud className="w-3.5 h-3.5" /> {props.syncStatus}
+        </Badge>
+      )
+    }
+    if (props.syncStatus === 'Ocioso (Edge AI)') {
+      return (
+        <Badge variant="outline" className="border-primary/30 text-primary gap-1.5 bg-primary/5">
+          <Activity className="w-3 h-3" /> Ocioso (Edge AI)
+        </Badge>
+      )
+    }
+    if (props.syncStatus === 'Erro de Conexão') {
       return (
         <Badge variant="destructive" className="gap-1.5">
-          <span className="relative flex h-2 w-2">
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-200"></span>
-          </span>
-          🔴 Conexão Perdida
+          <CloudOff className="w-3.5 h-3.5" /> Erro de Conexão
         </Badge>
       )
     }
-    if (props.syncStatus === 'Aguardando dados de telemetria...') {
+    if (props.syncStatus === 'Aguardando dados...') {
       return (
         <Badge
           variant="outline"
@@ -71,14 +80,7 @@ export function TripHeader(props: TripHeaderProps) {
           <span className="relative flex h-2 w-2">
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
           </span>
-          🟡 Aguardando dados de telemetria...
-        </Badge>
-      )
-    }
-    if (props.syncStatus === 'Apenas Local') {
-      return (
-        <Badge variant="destructive" className="gap-1">
-          <CloudOff className="w-3 h-3" /> Apenas Local
+          Aguardando dados...
         </Badge>
       )
     }
@@ -134,7 +136,7 @@ export function TripHeader(props: TripHeaderProps) {
           )}
           {props.isReceiving && !props.isCapturing && (
             <span className="flex items-center gap-1 text-purple-500 font-medium bg-purple-500/10 px-2 py-0.5 rounded animate-pulse">
-              <Activity className="w-4 h-4" /> Recebendo Dados da Nuvem
+              <Cloud className="w-4 h-4" /> Sincronizando Skip Cloud
             </span>
           )}
         </p>
@@ -143,7 +145,7 @@ export function TripHeader(props: TripHeaderProps) {
         <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50 justify-between md:justify-end w-full md:w-auto">
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-              Sessão Cloud-Sync
+              Skip Cloud API
             </p>
             <p className="text-sm font-medium flex items-center gap-1">
               <Shield className="w-3.5 h-3.5 text-primary" /> Autenticada

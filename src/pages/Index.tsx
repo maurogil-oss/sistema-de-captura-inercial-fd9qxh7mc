@@ -52,12 +52,20 @@ export default function Index() {
           <h1 className="text-3xl font-bold tracking-tight">Visão Executiva</h1>
           <p className="text-muted-foreground">Telemetria em tempo real e inteligência de frota.</p>
         </div>
-        <Button asChild variant="outline" className="gap-2">
-          <Link to="/sdk">
-            <Cpu className="w-4 h-4" />
-            Gerenciamento do SDK Orbis
-          </Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button asChild className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+            <Link to="/trip/latest-session">
+              <Activity className="w-4 h-4" />
+              Monitorar Nova Viagem
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/sdk">
+              <Cpu className="w-4 h-4" />
+              SDK Orbis
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
