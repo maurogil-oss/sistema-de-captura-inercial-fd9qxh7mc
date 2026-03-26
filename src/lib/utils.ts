@@ -11,4 +11,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Add any other utility functions here
+/**
+ * Generates a unique short ID for trip sessions
+ */
+export const generateSessionId = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const rand = (len: number) =>
+    Array.from({ length: len })
+      .map(() => chars[Math.floor(Math.random() * chars.length)])
+      .join('')
+  return `TRP-${rand(4)}-${rand(2)}`
+}

@@ -14,16 +14,7 @@ import { BatteryEfficiencyCard } from '@/components/BatteryEfficiencyCard'
 import { TripCriticalEvents } from '@/components/TripCriticalEvents'
 import { TripExport } from '@/components/TripExport'
 import { useToast } from '@/hooks/use-toast'
-import { cn } from '@/lib/utils'
-
-const generateSessionId = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  const rand = (len: number) =>
-    Array.from({ length: len })
-      .map(() => chars[Math.floor(Math.random() * chars.length)])
-      .join('')
-  return `TRP-${rand(4)}-${rand(2)}`
-}
+import { cn, generateSessionId } from '@/lib/utils'
 
 export default function TripDetails() {
   const { sessionId: paramSessionId } = useParams<{ sessionId: string }>()

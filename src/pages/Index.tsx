@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Activity,
@@ -16,6 +17,7 @@ import { MapMock } from '@/components/ui-custom/MapMock'
 import { EventBadge } from '@/components/ui-custom/EventBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { DevicePairingCard } from '@/components/DevicePairingCard'
 import { mockKPIs, mockRecentEvents, calculateSeverity, getSeverityLabel } from '@/data/mockData'
 
 const WeatherIcon = ({ weather, className }: { weather: string; className?: string }) => {
@@ -45,6 +47,8 @@ const WeatherLabel = ({ weather }: { weather: string }) => {
 }
 
 export default function Index() {
+  const [currentSessionId, setCurrentSessionId] = useState<string>('')
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -54,7 +58,7 @@ export default function Index() {
         </div>
         <div className="flex items-center gap-3">
           <Button asChild className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-            <Link to="/trip/latest-session">
+            <Link to={`/trip/${currentSessionId || 'latest-session'}`}>
               <Activity className="w-4 h-4" />
               Monitorar Nova Viagem
             </Link>
@@ -67,6 +71,8 @@ export default function Index() {
           </Button>
         </div>
       </div>
+
+      <DevicePairingCard onSessionIdGenerated={setCurrentSessionId} />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
