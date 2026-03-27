@@ -118,7 +118,8 @@ export default function TripDetails() {
   useEffect(() => {
     if (displayEvents.length > prevEventsLength.current) {
       const latest = displayEvents[displayEvents.length - 1]
-      if (!sensors.isCapturing) {
+      // Ensure mobile users never get an alert, only monitor devices
+      if (!sensors.isCapturing && isMonitorDevice) {
         setIsAlerting(true)
         toast({
           title: 'Evento Crítico!',
@@ -129,17 +130,17 @@ export default function TripDetails() {
       }
     }
     prevEventsLength.current = displayEvents.length
-  }, [displayEvents.length, toast, displayEvents, sensors.isCapturing])
+  }, [displayEvents.length, toast, displayEvents, sensors.isCapturing, isMonitorDevice])
 
   useEffect(() => {
-    if (hasData && dStats.zenScore < 70 && !sensors.isCapturing) {
+    if (hasData && dStats.zenScore < 70 && !sensors.isCapturing && isMonitorDevice) {
       toast({
         title: 'Atenção ao Zen Score',
         description: 'Pontuação de condução abaixo do limite seguro (70).',
         variant: 'destructive',
       })
     }
-  }, [dStats.zenScore, hasData, toast, sensors.isCapturing])
+  }, [dStats.zenScore, hasData, toast, sensors.isCapturing, isMonitorDevice])
 
   if (!sessionId) return null
 
@@ -163,7 +164,7 @@ export default function TripDetails() {
         sensorError={sensors.error}
       />
 
-      {syncStatus === 'Erro de Conexão' && !sensors.isCapturing && (
+      {syncStatus === 'Erro de Conexão' && !sensors.isCapturing && isMonitorDevice && (
         <Alert
           variant="destructive"
           className="animate-in fade-in slide-in-from-top-2 bg-destructive/10 border-destructive/30"

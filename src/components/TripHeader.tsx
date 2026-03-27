@@ -117,6 +117,14 @@ export function TripHeader(props: TripHeaderProps) {
     )
   }
 
+  const isError =
+    props.syncStatus === 'Erro de Conexão' || props.syncStatus === 'Offline' || !!props.sensorError
+  const isGood =
+    props.syncStatus === 'Conectado à Nuvem' ||
+    props.syncStatus === 'Recebendo Atualizações' ||
+    props.syncStatus === 'Sincronizando...' ||
+    (props.syncStatus === 'Ocioso (Edge AI)' && props.isCapturing)
+
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/50 pb-6">
       <div className="w-full md:w-auto">
@@ -178,19 +186,27 @@ export function TripHeader(props: TripHeaderProps) {
             </p>
           </div>
           <div className="flex items-center gap-2 ml-2 pl-2 border-l border-border/50">
-            {(props.isCapturing || props.sensorError) && (
+            <div
+              className="flex items-center justify-center w-6 h-6 rounded-full bg-background shadow-sm border border-border shrink-0"
+              title={
+                isError
+                  ? 'Conexão/Fluxo Interrompido'
+                  : isGood
+                    ? 'Fluxo de Dados Ativo'
+                    : 'Aguardando Conexão'
+              }
+            >
               <div
-                className="flex items-center justify-center w-6 h-6 rounded-full bg-background shadow-sm border border-border shrink-0"
-                title={props.sensorError || 'Sensor Ativo e Funcionando'}
-              >
-                <div
-                  className={cn(
-                    'w-2.5 h-2.5 rounded-full animate-pulse',
-                    props.sensorError ? 'bg-destructive' : 'bg-emerald-500',
-                  )}
-                />
-              </div>
-            )}
+                className={cn(
+                  'w-2.5 h-2.5 rounded-full',
+                  isError
+                    ? 'bg-destructive'
+                    : isGood
+                      ? 'bg-emerald-500 animate-pulse'
+                      : 'bg-amber-500',
+                )}
+              />
+            </div>
             <Button
               variant="outline"
               size="icon"
