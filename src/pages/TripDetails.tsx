@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Activity, AlertTriangle, MapPin, Smartphone } from 'lucide-react'
+import { Activity, AlertTriangle, MapPin, Smartphone, CloudOff } from 'lucide-react'
 import { TripCharts } from '@/components/TripCharts'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { useInertialSensors } from '@/hooks/useInertialSensors'
@@ -45,16 +45,32 @@ export default function TripDetails() {
     phi: sensors.phi,
     maxJerk: sensors.maxJerk,
     potholes: sensors.potholes,
+    batteryLevel: sensors.batteryLevel,
   }
 
-  // Periodic Telemetry Update (Optimized for Battery vs Real-time smoothness)
+  const latestDataRef = useRef(sensors.data)
+  const latestStatsRef = useRef(currentStats)
+  const latestEventsRef = useRef(sensors.eventLog)
+
+  useEffect(() => {
+    latestDataRef.current = sensors.data
+    latestStatsRef.current = currentStats
+    latestEventsRef.current = sensors.eventLog
+  }, [sensors.data, currentStats, sensors.eventLog])
+
+  // Periodic Telemetry Update (Optimized for Battery vs Real-time smoothness, < 1s latency)
   useEffect(() => {
     if (!sensors.isCapturing) return
     const interval = setInterval(() => {
-      sendEvent(sensors.data.slice(-20), currentStats, sensors.eventLog, 'TELEMETRY_UPDATE')
-    }, 5000)
+      sendEvent(
+        latestDataRef.current.slice(-20),
+        latestStatsRef.current,
+        latestEventsRef.current,
+        'TELEMETRY_UPDATE',
+      )
+    }, 800)
     return () => clearInterval(interval)
-  }, [sensors.isCapturing, sensors.data, currentStats, sensors.eventLog, sendEvent])
+  }, [sensors.isCapturing, sendEvent])
 
   // Immediate Critical Event Dispatch
   useEffect(() => {
@@ -149,7 +165,21 @@ export default function TripDetails() {
         </Alert>
       )}
 
-      {isMonitorDevice && !sensors.isCapturing && (
+      {syncStatus === 'Erro de Conexão' && (
+        <Alert
+          variant="destructive"
+          className="animate-in fade-in slide-in-from-top-2 bg-destructive/10 border-destructive/30"
+        >
+          <CloudOff className="h-4 w-4" />
+          <AlertTitle>Conexão Perdida</AlertTitle>
+          <AlertDescription>
+            Não foi possível comunicar com a nuvem (Skip Cloud). Verifique sua conexão com a
+            internet.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isMonitorDevice && !sensors.isCapturing && syncStatus !== 'Erro de Conexão' && (
         <Alert className="bg-blue-500/10 border-blue-500/50 text-blue-600">
           <Activity className="h-4 w-4" />
           <AlertTitle>Modo Monitor</AlertTitle>
@@ -197,7 +227,7 @@ export default function TripDetails() {
           <div className="grid sm:grid-cols-2 gap-6">
             <TripCriticalEvents events={displayEvents} />
             <div className="space-y-6 flex flex-col">
-              <BatteryEfficiencyCard />
+              <BatteryEfficiencyCard batteryLevel={dStats.batteryLevel} />
               <TripExport sessionId={sessionId} stats={dStats} events={displayEvents} />
             </div>
           </div>

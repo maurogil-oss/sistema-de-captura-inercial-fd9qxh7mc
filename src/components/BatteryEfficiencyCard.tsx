@@ -2,7 +2,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Battery, Zap, Smartphone, ArrowDownRight } from 'lucide-react'
 
-export function BatteryEfficiencyCard() {
+export function BatteryEfficiencyCard({ batteryLevel }: { batteryLevel?: number | null }) {
   const stdDrain = 12.5 // 12.5% per hour
   const edgeDrain = 2.4 // 2.4% per hour
   const savings = Math.round(((stdDrain - edgeDrain) / stdDrain) * 100)
@@ -14,8 +14,15 @@ export function BatteryEfficiencyCard() {
       </div>
 
       <CardHeader className="pb-3 border-b border-border/30">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Battery className="w-4 h-4 text-emerald-500" /> Eficiência Energética
+        <CardTitle className="text-base flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Battery className="w-4 h-4 text-emerald-500" /> Eficiência Energética
+          </div>
+          {batteryLevel !== undefined && batteryLevel !== null && (
+            <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              {Math.round(batteryLevel)}% Bateria
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
 

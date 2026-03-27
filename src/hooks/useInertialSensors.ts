@@ -26,6 +26,7 @@ export function useInertialSensors() {
   const [phi, setPhi] = useState(100)
   const [maxJerk, setMaxJerk] = useState(0)
   const [potholes, setPotholes] = useState(0)
+  const [batteryLevel, setBatteryLevel] = useState<number | null>(null)
   const [permissionState, setPermissionState] = useState<PermissionState>('idle')
   const [eventLog, setEventLog] = useState<TripEvent[]>([])
 
@@ -51,6 +52,30 @@ export function useInertialSensors() {
   const rafRef = useRef<number | undefined>(undefined)
   const stationaryTimerRef = useRef(0)
   const isStationaryRef = useRef(false)
+
+  useEffect(() => {
+    let battery: any = null
+    const updateBattery = () => {
+      if (battery) setBatteryLevel(battery.level * 100)
+    }
+
+    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
+      ;(navigator as any)
+        .getBattery()
+        .then((b: any) => {
+          battery = b
+          updateBattery()
+          battery.addEventListener('levelchange', updateBattery)
+        })
+        .catch(() => {})
+    }
+
+    return () => {
+      if (battery) {
+        battery.removeEventListener('levelchange', updateBattery)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const handleVisibilityChange = () => setIsBackground(document.hidden)
@@ -327,6 +352,7 @@ export function useInertialSensors() {
     phi,
     maxJerk,
     potholes,
+    batteryLevel,
     permissionState,
     requestSensorPermission,
     gpsPollingRate,

@@ -30,6 +30,25 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     }
   }, [isCapturing])
 
+  // Connection Error Handling
+  useEffect(() => {
+    const handleOffline = () => setSyncStatus('Erro de Conexão')
+    const handleOnline = () =>
+      setSyncStatus(isCapturingRef.current ? 'Ocioso (Edge AI)' : 'Aguardando dados...')
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      handleOffline()
+    }
+
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [])
+
   // Initial fetch and subscription
   useEffect(() => {
     if (typeof window === 'undefined' || !sessionId) return
@@ -78,7 +97,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
         if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
         receivingTimeoutRef.current = setTimeout(() => {
           setIsReceiving(false)
-          if (!isCapturingRef.current) setSyncStatus('Conectado à Nuvem')
+          if (!isCapturingRef.current && navigator.onLine) setSyncStatus('Conectado à Nuvem')
         }, 2500)
       },
     )
@@ -98,6 +117,11 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     ) => {
       if (!isCapturingRef.current) return
 
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setSyncStatus('Erro de Conexão')
+        return
+      }
+
       try {
         setSyncStatus('Sincronizando...')
         await SkipCloud.collection('telemetry').create({
@@ -109,8 +133,8 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
         })
 
         setTimeout(() => {
-          if (isCapturingRef.current) setSyncStatus('Ocioso (Edge AI)')
-        }, 1500)
+          if (isCapturingRef.current && navigator.onLine) setSyncStatus('Ocioso (Edge AI)')
+        }, 600)
       } catch (err) {
         setSyncStatus('Erro de Conexão')
       }
