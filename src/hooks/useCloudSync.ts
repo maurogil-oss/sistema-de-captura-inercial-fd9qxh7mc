@@ -84,7 +84,14 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
 
         setRemoteData((prev) => {
           if (payload.type === 'TRIP_SUMMARY') return payload.data
-          const merged = [...prev, ...(payload.data || [])]
+          const newItems = payload.data || []
+          if (newItems.length === 0) return prev
+
+          // Efficient merge and deduplicate by time to prevent overlap jitter
+          const existingTimes = new Set(prev.map((p) => p.time))
+          const uniqueNewItems = newItems.filter((item: any) => !existingTimes.has(item.time))
+
+          const merged = [...prev, ...uniqueNewItems]
           return merged.slice(-60)
         })
 
@@ -98,7 +105,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
         receivingTimeoutRef.current = setTimeout(() => {
           setIsReceiving(false)
           if (!isCapturingRef.current && navigator.onLine) setSyncStatus('Conectado à Nuvem')
-        }, 2500)
+        }, 1500)
       },
     )
 

@@ -25,6 +25,7 @@ interface TripHeaderProps {
   isWaiting: boolean
   startCapture: () => void
   stopCapture: () => void
+  sensorError?: string | null
 }
 
 export function TripHeader(props: TripHeaderProps) {
@@ -41,7 +42,7 @@ export function TripHeader(props: TripHeaderProps) {
   const getSyncBadge = () => {
     if (props.syncStatus === 'Sincronizando...') {
       return (
-        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm">
+        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm transition-colors">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -52,8 +53,33 @@ export function TripHeader(props: TripHeaderProps) {
     }
     if (props.syncStatus === 'Conectado à Nuvem' || props.syncStatus === 'Recebendo Atualizações') {
       return (
-        <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 gap-1.5 shadow-sm">
-          <Cloud className="w-3.5 h-3.5" /> {props.syncStatus}
+        <Badge
+          className={cn(
+            'gap-1.5 shadow-sm transition-colors duration-300',
+            props.syncStatus === 'Recebendo Atualizações'
+              ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
+              : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30',
+          )}
+        >
+          <span className="relative flex h-2 w-2">
+            <span
+              className={cn(
+                'absolute inline-flex h-full w-full rounded-full opacity-75',
+                props.syncStatus === 'Recebendo Atualizações'
+                  ? 'bg-purple-500 animate-ping'
+                  : 'bg-blue-500',
+              )}
+            ></span>
+            <span
+              className={cn(
+                'relative inline-flex rounded-full h-2 w-2',
+                props.syncStatus === 'Recebendo Atualizações' ? 'bg-purple-500' : 'bg-blue-500',
+              )}
+            ></span>
+          </span>
+          {props.syncStatus === 'Recebendo Atualizações'
+            ? 'Recebendo Dados...'
+            : 'Conectado (Ao Vivo)'}
         </Badge>
       )
     }
@@ -75,7 +101,7 @@ export function TripHeader(props: TripHeaderProps) {
       return (
         <Badge
           variant="outline"
-          className="border-amber-500/50 text-amber-600 dark:text-amber-500 gap-1.5 bg-amber-500/5"
+          className="border-amber-500/50 text-amber-600 dark:text-amber-500 gap-1.5 bg-amber-500/5 transition-colors"
         >
           <span className="relative flex h-2 w-2">
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
@@ -102,7 +128,7 @@ export function TripHeader(props: TripHeaderProps) {
           <Badge
             variant="outline"
             className={cn(
-              'border whitespace-nowrap',
+              'border whitespace-nowrap transition-colors',
               props.isCapturing
                 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                 : props.isReceiving
@@ -151,15 +177,30 @@ export function TripHeader(props: TripHeaderProps) {
               <Shield className="w-3.5 h-3.5 text-primary" /> Autenticada
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={copyLink}
-            className="ml-2 h-8 w-8 text-muted-foreground hover:text-foreground"
-            title="Copiar Link da Sessão"
-          >
-            <LinkIcon className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2 ml-2 pl-2 border-l border-border/50">
+            {(props.isCapturing || props.sensorError) && (
+              <div
+                className="flex items-center justify-center w-6 h-6 rounded-full bg-background shadow-sm border border-border shrink-0"
+                title={props.sensorError || 'Sensor Ativo e Funcionando'}
+              >
+                <div
+                  className={cn(
+                    'w-2.5 h-2.5 rounded-full animate-pulse',
+                    props.sensorError ? 'bg-destructive' : 'bg-emerald-500',
+                  )}
+                />
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={copyLink}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+              title="Copiar Link da Sessão"
+            >
+              <LinkIcon className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {props.isCapturing ? (
