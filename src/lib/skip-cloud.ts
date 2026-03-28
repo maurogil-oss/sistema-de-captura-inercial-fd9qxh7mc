@@ -6,16 +6,22 @@
 
 const PB_URL = import.meta.env.VITE_PB_URL || 'https://skipcloud.pockethost.io'
 
+export type ConnectionStatus = 'connected' | 'connecting' | 'error' | 'reconnecting'
+
 class RealtimeClient {
   private sse: EventSource | null = null
   private clientId: string | null = null
   private subscriptions: Map<string, Array<(data: any) => void>> = new Map()
-  private connectionListener: ((connected: boolean) => void) | null = null
+  private connectionListener: ((status: ConnectionStatus) => void) | null = null
+  private reconnectTimeout: NodeJS.Timeout | null = null
+  private eventHandlers: Map<string, (e: any) => void> = new Map()
 
-  public setConnectionListener(callback: (connected: boolean) => void) {
+  public setConnectionListener(callback: (status: ConnectionStatus) => void) {
     this.connectionListener = callback
     if (this.sse && this.sse.readyState === EventSource.OPEN) {
-      callback(true)
+      callback('connected')
+    } else if (this.sse && this.sse.readyState === EventSource.CONNECTING) {
+      callback('connecting')
     }
   }
 
@@ -34,54 +40,90 @@ class RealtimeClient {
       })
     } catch (error) {
       console.warn('SkipCloud: Failed to submit real-time subscriptions', error)
-      this.connectionListener?.(false)
+      this.connectionListener?.('error')
+    }
+  }
+
+  private connect() {
+    if (this.sse) {
+      this.sse.close()
+    }
+
+    this.connectionListener?.(this.reconnectTimeout ? 'reconnecting' : 'connecting')
+
+    try {
+      this.sse = new EventSource(`${PB_URL}/api/realtime`)
+
+      this.sse.addEventListener('PB_CONNECT', (e: any) => {
+        try {
+          const payload = JSON.parse(e.data)
+          this.clientId = payload.clientId
+          this.connectionListener?.('connected')
+          if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout)
+            this.reconnectTimeout = null
+          }
+          this.submitSubscriptions()
+        } catch (err) {
+          console.error('SkipCloud: Failed to parse PB_CONNECT', err)
+        }
+      })
+
+      this.sse.onerror = () => {
+        console.warn('SkipCloud: Real-time connection error. Reconnecting...')
+        this.connectionListener?.('reconnecting')
+        this.sse?.close()
+        this.sse = null
+
+        if (!this.reconnectTimeout) {
+          this.reconnectTimeout = setTimeout(() => {
+            this.reconnectTimeout = null
+            this.connect()
+          }, 3000)
+        }
+      }
+
+      for (const [topic, handler] of this.eventHandlers.entries()) {
+        this.sse.addEventListener(topic, handler)
+      }
+    } catch (err) {
+      console.error('SkipCloud: Failed to initialize EventSource', err)
+      this.connectionListener?.('error')
+      if (!this.reconnectTimeout) {
+        this.reconnectTimeout = setTimeout(() => {
+          this.reconnectTimeout = null
+          this.connect()
+        }, 3000)
+      }
     }
   }
 
   subscribe(topic: string, callback: (data: any) => void) {
     if (!this.subscriptions.has(topic)) {
       this.subscriptions.set(topic, [])
+
+      const handler = (e: any) => {
+        try {
+          const payload = JSON.parse(e.data)
+          const callbacks = this.subscriptions.get(topic) || []
+          callbacks.forEach((cb) => cb(payload))
+        } catch (err) {
+          console.error('SkipCloud: Failed to parse realtime event', err)
+        }
+      }
+      this.eventHandlers.set(topic, handler)
+
+      if (this.sse) {
+        this.sse.addEventListener(topic, handler)
+      }
     }
+
     this.subscriptions.get(topic)!.push(callback)
 
     if (!this.sse) {
-      try {
-        this.sse = new EventSource(`${PB_URL}/api/realtime`)
-
-        this.sse.addEventListener('PB_CONNECT', (e: any) => {
-          try {
-            const payload = JSON.parse(e.data)
-            this.clientId = payload.clientId
-            this.connectionListener?.(true)
-            this.submitSubscriptions()
-          } catch (err) {
-            console.error('SkipCloud: Failed to parse PB_CONNECT', err)
-          }
-        })
-
-        this.sse.onerror = () => {
-          console.warn('SkipCloud: Real-time connection error. Reconnecting...')
-          this.connectionListener?.(false)
-        }
-      } catch (err) {
-        console.error('SkipCloud: Failed to initialize EventSource', err)
-        this.connectionListener?.(false)
-      }
+      this.connect()
     } else if (this.clientId) {
       this.submitSubscriptions()
-    }
-
-    const handleEvent = (e: any) => {
-      try {
-        const payload = JSON.parse(e.data)
-        callback(payload)
-      } catch (err) {
-        console.error('SkipCloud: Failed to parse realtime event', err)
-      }
-    }
-
-    if (this.sse) {
-      this.sse.addEventListener(topic, handleEvent)
     }
 
     return () => {
@@ -91,11 +133,13 @@ class RealtimeClient {
         if (idx !== -1) callbacks.splice(idx, 1)
         if (callbacks.length === 0) {
           this.subscriptions.delete(topic)
+          const handler = this.eventHandlers.get(topic)
+          if (handler && this.sse) {
+            this.sse.removeEventListener(topic, handler)
+          }
+          this.eventHandlers.delete(topic)
           this.submitSubscriptions()
         }
-      }
-      if (this.sse) {
-        this.sse.removeEventListener(topic, handleEvent)
       }
     }
   }
@@ -159,7 +203,7 @@ export class Collection {
 
 export const SkipCloud = {
   collection: (name: string) => new Collection(name),
-  onConnectionChange: (callback: (connected: boolean) => void) => {
+  onConnectionChange: (callback: (status: ConnectionStatus) => void) => {
     realtime.setConnectionListener(callback)
   },
 }

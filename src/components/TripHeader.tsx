@@ -11,6 +11,7 @@ import {
   MapPin,
   Smartphone,
   Cloud,
+  RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -40,7 +41,9 @@ export function TripHeader(props: TripHeaderProps) {
     })
   }
 
-  const isError = props.syncStatus === 'Erro de Conexão' || !props.isOnline || !!props.sensorError
+  const isError = props.syncStatus === 'Erro de Conexão' || !!props.sensorError
+  const isConnecting =
+    props.syncStatus === 'Conectando...' || props.syncStatus === 'Reconectando...'
   const isGood = props.isOnline
 
   return (
@@ -50,7 +53,12 @@ export function TripHeader(props: TripHeaderProps) {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-mono truncate">
             {props.sessionId}
           </h1>
-          {props.isOnline ? (
+          {props.syncStatus === 'Conectando...' || props.syncStatus === 'Reconectando...' ? (
+            <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1.5 shadow-sm transition-colors">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              {props.syncStatus}
+            </Badge>
+          ) : props.isOnline ? (
             <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm transition-colors">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
@@ -127,9 +135,11 @@ export function TripHeader(props: TripHeaderProps) {
               title={
                 isError
                   ? 'Conexão/Fluxo Interrompido'
-                  : isGood
-                    ? 'Fluxo de Dados Ativo'
-                    : 'Aguardando Conexão'
+                  : isConnecting
+                    ? 'Tentando Conectar...'
+                    : isGood
+                      ? 'Fluxo de Dados Ativo'
+                      : 'Aguardando Conexão'
               }
             >
               <div
@@ -137,9 +147,11 @@ export function TripHeader(props: TripHeaderProps) {
                   'w-2.5 h-2.5 rounded-full',
                   isError
                     ? 'bg-destructive'
-                    : isGood
-                      ? 'bg-emerald-500 animate-pulse'
-                      : 'bg-amber-500',
+                    : isConnecting
+                      ? 'bg-amber-500 animate-pulse'
+                      : isGood
+                        ? 'bg-emerald-500 animate-pulse'
+                        : 'bg-amber-500',
                 )}
               />
             </div>

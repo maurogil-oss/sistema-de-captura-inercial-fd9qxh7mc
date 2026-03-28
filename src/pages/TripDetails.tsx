@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Activity, AlertTriangle, MapPin, Smartphone, CloudOff } from 'lucide-react'
+import { Activity, AlertTriangle, MapPin, Smartphone, CloudOff, RefreshCw } from 'lucide-react'
 import { TripCharts } from '@/components/TripCharts'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { useInertialSensors } from '@/hooks/useInertialSensors'
@@ -34,6 +34,9 @@ export default function TripDetails() {
     }
   }, [paramSessionId, navigate])
 
+  const [retryTrigger, setRetryTrigger] = useState(0)
+  const handleRetry = useCallback(() => setRetryTrigger((prev) => prev + 1), [])
+
   const sensors = useInertialSensors()
   const {
     syncStatus,
@@ -45,7 +48,7 @@ export default function TripDetails() {
     isReceiving,
     mobileConnected,
     isOnline,
-  } = useCloudSync(sessionId, sensors.isCapturing)
+  } = useCloudSync(sessionId, sensors.isCapturing, retryTrigger)
 
   const [lastSentEventId, setLastSentEventId] = useState<string | null>(null)
 
@@ -77,7 +80,7 @@ export default function TripDetails() {
         latestEventsRef.current,
         'TELEMETRY_UPDATE',
       )
-    }, 800)
+    }, 450)
     return () => clearInterval(interval)
   }, [sensors.isCapturing, sendEvent])
 
@@ -169,12 +172,14 @@ export default function TripDetails() {
   if (!sessionId) return null
 
   let trafficState = 'yellow'
-  if (syncStatus === 'Erro de Conexão' || !isOnline) {
+  if (syncStatus === 'Erro de Conexão' || syncStatus === 'Reconectando...') {
     trafficState = 'red'
   } else if (
+    syncStatus === 'Conectando...' ||
     syncStatus === 'Aguardando dispositivo móvel' ||
     syncStatus === 'Aguardando dados...' ||
-    (!hasData && isMonitorDevice)
+    (!hasData && isMonitorDevice) ||
+    !isOnline
   ) {
     trafficState = 'yellow'
   } else {
@@ -245,25 +250,51 @@ export default function TripDetails() {
         sensorError={sensors.error}
       />
 
-      {syncStatus === 'Erro de Conexão' && !sensors.isCapturing && isMonitorDevice && (
-        <Alert
-          variant="destructive"
-          className="animate-in fade-in slide-in-from-top-2 bg-destructive/10 border-destructive/30"
-        >
-          <CloudOff className="h-4 w-4" />
-          <AlertTitle>Conexão Perdida</AlertTitle>
-          <AlertDescription>
-            Não foi possível comunicar com a nuvem (Skip Cloud). Verifique sua conexão com a
-            internet.
-          </AlertDescription>
-        </Alert>
-      )}
+      {(syncStatus === 'Erro de Conexão' || syncStatus === 'Reconectando...') &&
+        !sensors.isCapturing &&
+        isMonitorDevice && (
+          <Alert
+            variant={syncStatus === 'Reconectando...' ? 'default' : 'destructive'}
+            className={cn(
+              'animate-in fade-in slide-in-from-top-2',
+              syncStatus === 'Reconectando...'
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-500'
+                : 'bg-destructive/10 border-destructive/30',
+            )}
+          >
+            {syncStatus === 'Reconectando...' ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <CloudOff className="h-4 w-4" />
+            )}
+            <AlertTitle>
+              {syncStatus === 'Reconectando...' ? 'Reconectando...' : 'Conexão Perdida'}
+            </AlertTitle>
+            <AlertDescription className="flex flex-col gap-3 mt-2">
+              <p>
+                {syncStatus === 'Reconectando...'
+                  ? 'A conexão em tempo real falhou. Tentando reconectar automaticamente...'
+                  : 'Não foi possível comunicar com a nuvem (Skip Cloud). Verifique sua conexão com a internet ou tente novamente.'}
+              </p>
+              {syncStatus === 'Erro de Conexão' && (
+                <button
+                  onClick={handleRetry}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-fit"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" /> Tentar Novamente
+                </button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
       {isMonitorDevice &&
         !sensors.isCapturing &&
         !isOnline &&
         !hasData &&
-        syncStatus !== 'Erro de Conexão' && (
+        syncStatus !== 'Erro de Conexão' &&
+        syncStatus !== 'Reconectando...' &&
+        syncStatus !== 'Conectando...' && (
           <Card className="border-primary/20 bg-primary/5 shadow-md animate-in fade-in zoom-in-95 duration-500">
             <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-8">
               <div className="shrink-0 p-4 bg-white rounded-2xl shadow-sm border border-border/50 hover:scale-105 transition-transform duration-300">
@@ -301,7 +332,8 @@ export default function TripDetails() {
         !sensors.isCapturing &&
         isOnline &&
         !hasData &&
-        syncStatus !== 'Erro de Conexão' && (
+        syncStatus !== 'Erro de Conexão' &&
+        syncStatus !== 'Reconectando...' && (
           <Card className="border-amber-500/20 bg-amber-500/5 shadow-md animate-in fade-in zoom-in-95 duration-500">
             <CardContent className="p-6 flex items-center justify-center gap-4">
               <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center animate-pulse">
@@ -316,6 +348,20 @@ export default function TripDetails() {
             </CardContent>
           </Card>
         )}
+
+      {isMonitorDevice && !sensors.isCapturing && syncStatus === 'Conectando...' && (
+        <Card className="border-primary/20 bg-primary/5 shadow-md animate-in fade-in zoom-in-95 duration-500">
+          <CardContent className="p-6 flex items-center justify-center gap-4 h-32">
+            <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-foreground">Conectando à Skip Cloud...</h3>
+              <p className="text-muted-foreground text-sm">
+                Estabelecendo conexão segura para sincronização em tempo real.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {sensors.isCapturing ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 bg-gradient-to-b from-emerald-500/10 to-background rounded-3xl border border-emerald-500/20 shadow-inner relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
@@ -374,7 +420,7 @@ export default function TripDetails() {
                   <Smartphone className="w-5 h-5 text-primary" /> Telemetria Inercial
                 </CardTitle>
                 <CardDescription>
-                  {isReceivingRemote || remoteData.length > 0 || syncStatus === 'Conectado à Nuvem'
+                  {isReceivingRemote || remoteData.length > 0 || syncStatus === 'Online'
                     ? 'Dados sincronizados via Skip Cloud com latência sub-segundo.'
                     : 'Aguardando recepção do pacote inicial.'}
                 </CardDescription>

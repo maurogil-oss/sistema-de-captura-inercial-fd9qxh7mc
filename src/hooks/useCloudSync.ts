@@ -1,18 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { SkipCloud } from '@/lib/skip-cloud'
+import { SkipCloud, ConnectionStatus } from '@/lib/skip-cloud'
 import { TripEvent } from './useInertialSensors'
 
 export type SyncStatus =
   | 'Offline'
+  | 'Conectando...'
   | 'Aguardando dispositivo móvel'
   | 'Aguardando dados...'
   | 'Ocioso (Edge AI)'
   | 'Sincronizando...'
-  | 'Conectado à Nuvem'
+  | 'Online'
   | 'Recebendo Atualizações'
+  | 'Reconectando...'
   | 'Erro de Conexão'
 
-export function useCloudSync(sessionId: string, isCapturing: boolean) {
+export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigger: number = 0) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
   const [remoteData, setRemoteData] = useState<any[]>([])
   const [remoteStats, setRemoteStats] = useState<any>(null)
@@ -35,21 +37,22 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     if (isCapturing) {
       setSyncStatus('Ocioso (Edge AI)')
     } else {
-      setSyncStatus(mobileConnected ? 'Aguardando dados...' : 'Aguardando dispositivo móvel')
+      setSyncStatus((prev) =>
+        prev === 'Erro de Conexão' || prev === 'Conectando...' || prev === 'Reconectando...'
+          ? prev
+          : mobileConnected
+            ? 'Aguardando dados...'
+            : 'Aguardando dispositivo móvel',
+      )
     }
   }, [isCapturing, mobileConnected])
 
   // Connection Error Handling
   useEffect(() => {
     const handleOffline = () => setSyncStatus('Erro de Conexão')
-    const handleOnline = () =>
-      setSyncStatus(
-        isCapturingRef.current
-          ? 'Ocioso (Edge AI)'
-          : mobileConnected
-            ? 'Aguardando dados...'
-            : 'Aguardando dispositivo móvel',
-      )
+    const handleOnline = () => {
+      // Re-trigger visual update. SkipCloud will auto-reconnect EventSource and trigger onConnectionChange
+    }
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       handleOffline()
@@ -62,7 +65,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
       window.removeEventListener('offline', handleOffline)
       window.removeEventListener('online', handleOnline)
     }
-  }, [mobileConnected])
+  }, [])
 
   // Initial fetch and subscription
   useEffect(() => {
@@ -72,14 +75,19 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     setRemoteStats(null)
     setRemoteEventLog([])
     setMobileConnected(false)
-    setSyncStatus(isCapturingRef.current ? 'Ocioso (Edge AI)' : 'Aguardando dispositivo móvel')
+    setSyncStatus(isCapturingRef.current ? 'Ocioso (Edge AI)' : 'Conectando...')
+    setIsOnline(false)
 
-    const fetchInitialData = async () => {
+    let isMounted = true
+
+    const fetchInitialData = async (retryCount = 0) => {
       try {
         const result = await SkipCloud.collection('telemetry').getList(1, 1, {
           filter: `sessionId = '${sessionId}'`,
           sort: '-created',
         })
+
+        if (!isMounted) return
 
         if (result.items.length > 0 && !isCapturingRef.current) {
           const latest = result.items[0]
@@ -91,7 +99,6 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
           if (isRecent && (latest.type === 'PRESENCE' || hasData)) {
             setMobileConnected(true)
             lastHeartbeatRef.current = Date.now()
-            setIsOnline(true)
           }
 
           if (latest.data) setRemoteData(latest.data)
@@ -99,26 +106,46 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
           if (latest.events) setRemoteEventLog(latest.events)
 
           if (isRecent) {
-            setSyncStatus(hasData ? 'Conectado à Nuvem' : 'Aguardando dados...')
+            setSyncStatus(hasData ? 'Online' : 'Aguardando dados...')
+          } else {
+            setSyncStatus('Aguardando dispositivo móvel')
           }
+        } else if (!isCapturingRef.current) {
+          setSyncStatus('Aguardando dispositivo móvel')
         }
       } catch (error) {
-        console.error('Failed to fetch initial telemetry data', error)
-        setSyncStatus('Erro de Conexão')
-        setIsOnline(false)
+        if (!isMounted) return
+        if (retryCount < 3) {
+          console.warn(`SkipCloud: Fetch failed, retrying (${retryCount + 1}/3)...`)
+          setTimeout(() => fetchInitialData(retryCount + 1), 3000)
+        } else {
+          console.error('Failed to fetch initial telemetry data', error)
+          setSyncStatus('Erro de Conexão')
+          setIsOnline(false)
+        }
       }
     }
 
     fetchInitialData()
 
-    SkipCloud.onConnectionChange((connected) => {
-      setIsOnline(connected)
+    SkipCloud.onConnectionChange((status: ConnectionStatus) => {
+      if (!isMounted) return
+      setIsOnline(status === 'connected')
+
       setSyncStatus((prev) => {
-        if (!connected && !isCapturingRef.current) return 'Erro de Conexão'
-        if (connected && prev === 'Erro de Conexão') {
-          return mobileConnectedRef.current ? 'Aguardando dados...' : 'Aguardando dispositivo móvel'
+        if (status === 'error') return 'Erro de Conexão'
+        if (status === 'reconnecting') return 'Reconectando...'
+        if (status === 'connecting') return 'Conectando...'
+
+        // if connected
+        if (!isCapturingRef.current) {
+          return mobileConnectedRef.current
+            ? prev === 'Aguardando dados...'
+              ? prev
+              : 'Online'
+            : 'Aguardando dispositivo móvel'
         }
-        return prev
+        return 'Ocioso (Edge AI)'
       })
     })
 
@@ -126,7 +153,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     const unsubscribe = SkipCloud.collection('telemetry').subscribe(
       `sessionId = '${sessionId}'`,
       (event) => {
-        if (isCapturingRef.current) return // Sender doesn't need to receive its own updates
+        if (isCapturingRef.current) return
 
         const payload = event.record
 
@@ -137,7 +164,10 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
           setMobileConnected(true)
           if (!isCapturingRef.current && navigator.onLine) {
             setSyncStatus((prev) =>
-              prev === 'Aguardando dispositivo móvel' || prev === 'Offline'
+              prev === 'Aguardando dispositivo móvel' ||
+              prev === 'Offline' ||
+              prev === 'Conectando...' ||
+              prev === 'Reconectando...'
                 ? 'Aguardando dados...'
                 : prev,
             )
@@ -155,7 +185,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
           const uniqueNewItems = newItems.filter((item: any) => !existingTimes.has(item.time))
 
           const merged = [...prev, ...uniqueNewItems]
-          return merged.slice(-60)
+          return merged.slice(-60) // Keep last 60 points for charts
         })
 
         if (payload.stats) setRemoteStats(payload.stats)
@@ -167,16 +197,17 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
         if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
         receivingTimeoutRef.current = setTimeout(() => {
           setIsReceiving(false)
-          if (!isCapturingRef.current && navigator.onLine) setSyncStatus('Conectado à Nuvem')
-        }, 1500)
+          if (!isCapturingRef.current && navigator.onLine) setSyncStatus('Online')
+        }, 500)
       },
     )
 
     return () => {
+      isMounted = false
       unsubscribe()
       if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
     }
-  }, [sessionId])
+  }, [sessionId, retryTrigger])
 
   // Heartbeat monitor for receiver
   useEffect(() => {
@@ -195,7 +226,9 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
         if (lastHeartbeatRef.current > 0 && Date.now() - lastHeartbeatRef.current > 5000) {
           setMobileConnected(false)
           setSyncStatus((prev) =>
-            prev !== 'Erro de Conexão' ? 'Aguardando dispositivo móvel' : prev,
+            prev !== 'Erro de Conexão' && prev !== 'Reconectando...' && prev !== 'Conectando...'
+              ? 'Aguardando dispositivo móvel'
+              : prev,
           )
         }
       }, 1000)
@@ -244,7 +277,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
 
         setTimeout(() => {
           if (isCapturingRef.current && navigator.onLine) setSyncStatus('Ocioso (Edge AI)')
-        }, 600)
+        }, 500)
       } catch (err) {
         setSyncStatus('Erro de Conexão')
       }
