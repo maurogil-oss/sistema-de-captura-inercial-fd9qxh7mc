@@ -53,6 +53,11 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   useEffect(() => {
     if (typeof window === 'undefined' || !sessionId) return
 
+    setRemoteData([])
+    setRemoteStats(null)
+    setRemoteEventLog([])
+    setSyncStatus(isCapturingRef.current ? 'Ocioso (Edge AI)' : 'Aguardando dados...')
+
     const fetchInitialData = async () => {
       try {
         const result = await SkipCloud.collection('telemetry').getList(1, 1, {

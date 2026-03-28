@@ -193,7 +193,12 @@ export function useInertialSensors() {
     const handleMotion = (event: DeviceMotionEvent) => {
       eventCountRef.current += 1
       const { accelerationIncludingGravity, acceleration } = event
-      const acc = acceleration || accelerationIncludingGravity
+
+      let acc = acceleration
+      if (!acc || (acc.x === null && acc.y === null && acc.z === null)) {
+        acc = accelerationIncludingGravity
+      }
+
       if (!acc || acc.x === null) return
 
       const now = performance.now()

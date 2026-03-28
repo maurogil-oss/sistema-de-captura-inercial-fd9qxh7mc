@@ -144,6 +144,15 @@ export default function TripDetails() {
 
   if (!sessionId) return null
 
+  let trafficState = 'yellow'
+  if (syncStatus === 'Erro de Conexão' || syncStatus === 'Offline') {
+    trafficState = 'red'
+  } else if (syncStatus === 'Aguardando dados...' || (!hasData && isMonitorDevice)) {
+    trafficState = 'yellow'
+  } else {
+    trafficState = 'green'
+  }
+
   return (
     <div
       className={cn(
@@ -151,6 +160,49 @@ export default function TripDetails() {
         isAlerting && !sensors.isCapturing && 'bg-destructive/5 rounded-xl -m-4 p-4',
       )}
     >
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-muted/20 p-3 rounded-lg border border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1.5 p-1.5 bg-background rounded-md border border-border/50 shadow-sm">
+            <div
+              className={cn(
+                'w-3 h-3 rounded-full transition-all duration-300',
+                trafficState === 'red'
+                  ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] scale-110'
+                  : 'bg-muted opacity-50',
+              )}
+              title="Desconectado / Sem Dados"
+            />
+            <div
+              className={cn(
+                'w-3 h-3 rounded-full transition-all duration-300',
+                trafficState === 'yellow'
+                  ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)] scale-110'
+                  : 'bg-muted opacity-50',
+              )}
+              title="Sessão Ativa / Aguardando Dados"
+            />
+            <div
+              className={cn(
+                'w-3 h-3 rounded-full transition-all duration-300',
+                trafficState === 'green'
+                  ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] scale-110'
+                  : 'bg-muted opacity-50',
+              )}
+              title="Sincronização em Tempo Real"
+            />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+              Status da Conexão
+            </span>
+            <span className="text-sm font-medium">{syncStatus}</span>
+          </div>
+        </div>
+        <div className="text-xs font-mono text-muted-foreground bg-background px-2 py-1 rounded border border-border/50">
+          Sessão: {sessionId}
+        </div>
+      </div>
+
       <TripHeader
         sessionId={sessionId}
         syncStatus={syncStatus}
