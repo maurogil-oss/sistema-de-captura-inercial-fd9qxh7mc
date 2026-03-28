@@ -234,14 +234,37 @@ export default function TripDetails() {
         !sensors.isCapturing &&
         remoteData.length === 0 &&
         syncStatus !== 'Erro de Conexão' && (
-          <Alert className="bg-blue-500/10 border-blue-500/50 text-blue-600 animate-in fade-in">
-            <Activity className="h-4 w-4" />
-            <AlertTitle>Modo Monitor</AlertTitle>
-            <AlertDescription>
-              Aguardando telemetria na sessão <strong>{sessionId}</strong>. Use um dispositivo móvel
-              para transmitir.
-            </AlertDescription>
-          </Alert>
+          <Card className="border-primary/20 bg-primary/5 shadow-md animate-in fade-in zoom-in-95 duration-500">
+            <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-8">
+              <div className="shrink-0 p-4 bg-white rounded-2xl shadow-sm border border-border/50 hover:scale-105 transition-transform duration-300">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                    `${window.location.origin}/trip/${sessionId}`,
+                  )}`}
+                  alt="QR Code da Sessão"
+                  className="w-32 h-32 sm:w-44 sm:h-44"
+                />
+              </div>
+              <div className="space-y-4 text-center sm:text-left flex-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                  <Smartphone className="w-4 h-4" /> Aguardando Dispositivo Móvel
+                </div>
+                <h3 className="text-2xl font-bold tracking-tight text-foreground">
+                  Escaneie para Transmitir
+                </h3>
+                <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto sm:mx-0">
+                  Use a câmera do seu celular para ler o QR Code. Seu smartphone funcionará como um
+                  sensor inercial e enviará a telemetria em tempo real para esta tela.
+                </p>
+                <div className="flex items-center justify-center sm:justify-start gap-2 pt-2 text-xs font-mono text-muted-foreground">
+                  <span className="uppercase font-semibold">Sessão ID:</span>
+                  <span className="text-foreground bg-background/50 px-3 py-1.5 rounded-md border border-border/50">
+                    {sessionId}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
       {sensors.isCapturing ? (
@@ -308,13 +331,28 @@ export default function TripDetails() {
               </CardHeader>
               <CardContent className="px-2 sm:px-6">
                 {!hasActivated ? (
-                  <div className="space-y-6 pt-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-[200px] flex flex-col space-y-3">
-                        <Skeleton className="h-4 w-[200px]" />
-                        <Skeleton className="flex-1 w-full rounded-xl" />
-                      </div>
-                    ))}
+                  <div className="flex flex-col items-center justify-center py-16 text-center space-y-6 animate-in zoom-in-95 duration-500">
+                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-2 shadow-inner">
+                      <Smartphone className="w-10 h-10 text-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-bold">Dispositivo Móvel Detectado</h3>
+                      <p className="text-muted-foreground max-w-sm mx-auto">
+                        Seu smartphone será usado como um sensor inercial para a sessão{' '}
+                        <strong className="font-mono text-foreground">{sessionId}</strong>.
+                      </p>
+                    </div>
+                    <button
+                      onClick={sensors.startCapture}
+                      disabled={sensors.isWaiting}
+                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-12 px-8 rounded-full text-lg w-full max-w-xs animate-pulse"
+                    >
+                      <Activity className="w-5 h-5" />
+                      {sensors.isWaiting ? 'Iniciando...' : 'Iniciar Transmissão Live'}
+                    </button>
+                    {sensors.error && (
+                      <p className="text-sm text-destructive max-w-xs">{sensors.error}</p>
+                    )}
                   </div>
                 ) : (
                   <TripCharts
