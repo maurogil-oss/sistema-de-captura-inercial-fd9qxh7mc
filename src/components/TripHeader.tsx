@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { pb } from '@/lib/skip-cloud'
 
 interface TripHeaderProps {
   sessionId: string
@@ -126,7 +127,18 @@ export function TripHeader(props: TripHeaderProps) {
               Skip Cloud API
             </p>
             <p className="text-sm font-medium flex items-center gap-1">
-              <Shield className="w-3.5 h-3.5 text-primary" /> Autenticada
+              <Shield
+                className={cn(
+                  'w-3.5 h-3.5',
+                  pb.authStore.isValid ? 'text-primary' : 'text-muted-foreground',
+                )}
+              />
+              {pb.authStore.isValid ? 'Autenticada' : 'Anônima'}
+              {pb.autoCancellation && (
+                <span className="text-[10px] ml-1 opacity-50 bg-muted px-1 rounded">
+                  Auto-Cancel
+                </span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2 ml-2 pl-2 border-l border-border/50">

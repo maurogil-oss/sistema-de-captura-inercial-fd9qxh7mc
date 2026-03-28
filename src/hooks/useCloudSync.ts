@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { SkipCloud, ConnectionStatus } from '@/lib/skip-cloud'
+import { pb, ConnectionStatus } from '@/lib/skip-cloud'
 import { TripEvent } from './useInertialSensors'
 
 export type SyncStatus =
@@ -82,7 +82,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
 
     const fetchInitialData = async (retryCount = 0) => {
       try {
-        const result = await SkipCloud.collection('telemetry').getList(1, 1, {
+        const result = await pb.collection('telemetry').getList(1, 1, {
           filter: `sessionId = '${sessionId}'`,
           sort: '-created',
         })
@@ -116,19 +116,23 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
       } catch (error) {
         if (!isMounted) return
         if (retryCount < 3) {
-          console.warn(`SkipCloud: Fetch failed, retrying (${retryCount + 1}/3)...`)
+          console.warn(`PocketBase: Fetch failed, retrying (${retryCount + 1}/3)...`)
           setTimeout(() => fetchInitialData(retryCount + 1), 3000)
         } else {
           console.error('Failed to fetch initial telemetry data', error)
-          setSyncStatus('Erro de Conexão')
+          // Silent re-validation instead of breaking UI
+          setSyncStatus('Aguardando dispositivo móvel')
           setIsOnline(false)
+          setTimeout(() => {
+            if (isMounted) fetchInitialData(0)
+          }, 10000)
         }
       }
     }
 
     fetchInitialData()
 
-    SkipCloud.onConnectionChange((status: ConnectionStatus) => {
+    pb.onConnectionChange((status: ConnectionStatus) => {
       if (!isMounted) return
       setIsOnline(status === 'connected')
 
@@ -150,61 +154,58 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     })
 
     // Subscribe to real-time Skip Cloud (PocketBase) updates
-    const unsubscribe = SkipCloud.collection('telemetry').subscribe(
-      `sessionId = '${sessionId}'`,
-      (event) => {
-        if (isCapturingRef.current) return
+    pb.collection('telemetry').subscribe(`sessionId = '${sessionId}'`, (event: any) => {
+      if (isCapturingRef.current) return
 
-        const payload = event.record
+      const payload = event.record
 
-        lastHeartbeatRef.current = Date.now()
-        setIsOnline(true)
+      lastHeartbeatRef.current = Date.now()
+      setIsOnline(true)
 
-        if (payload.type === 'PRESENCE') {
-          setMobileConnected(true)
-          if (!isCapturingRef.current && navigator.onLine) {
-            setSyncStatus((prev) =>
-              prev === 'Aguardando dispositivo móvel' ||
-              prev === 'Offline' ||
-              prev === 'Conectando...' ||
-              prev === 'Reconectando...'
-                ? 'Aguardando dados...'
-                : prev,
-            )
-          }
-          return
+      if (payload.type === 'PRESENCE') {
+        setMobileConnected(true)
+        if (!isCapturingRef.current && navigator.onLine) {
+          setSyncStatus((prev) =>
+            prev === 'Aguardando dispositivo móvel' ||
+            prev === 'Offline' ||
+            prev === 'Conectando...' ||
+            prev === 'Reconectando...'
+              ? 'Aguardando dados...'
+              : prev,
+          )
         }
+        return
+      }
 
-        setRemoteData((prev) => {
-          if (payload.type === 'TRIP_SUMMARY') return payload.data
-          const newItems = payload.data || []
-          if (newItems.length === 0) return prev
+      setRemoteData((prev) => {
+        if (payload.type === 'TRIP_SUMMARY') return payload.data
+        const newItems = payload.data || []
+        if (newItems.length === 0) return prev
 
-          // Efficient merge and deduplicate by time to prevent overlap jitter
-          const existingTimes = new Set(prev.map((p) => p.time))
-          const uniqueNewItems = newItems.filter((item: any) => !existingTimes.has(item.time))
+        // Efficient merge and deduplicate by time to prevent overlap jitter
+        const existingTimes = new Set(prev.map((p) => p.time))
+        const uniqueNewItems = newItems.filter((item: any) => !existingTimes.has(item.time))
 
-          const merged = [...prev, ...uniqueNewItems]
-          return merged.slice(-60) // Keep last 60 points for charts
-        })
+        const merged = [...prev, ...uniqueNewItems]
+        return merged.slice(-60) // Keep last 60 points for charts
+      })
 
-        if (payload.stats) setRemoteStats(payload.stats)
-        if (payload.events) setRemoteEventLog(payload.events)
+      if (payload.stats) setRemoteStats(payload.stats)
+      if (payload.events) setRemoteEventLog(payload.events)
 
-        setIsReceiving(true)
-        setSyncStatus('Recebendo Atualizações')
+      setIsReceiving(true)
+      setSyncStatus('Recebendo Atualizações')
 
-        if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
-        receivingTimeoutRef.current = setTimeout(() => {
-          setIsReceiving(false)
-          if (!isCapturingRef.current && navigator.onLine) setSyncStatus('Online')
-        }, 500)
-      },
-    )
+      if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
+      receivingTimeoutRef.current = setTimeout(() => {
+        setIsReceiving(false)
+        if (!isCapturingRef.current && navigator.onLine) setSyncStatus('Online')
+      }, 500)
+    })
 
     return () => {
       isMounted = false
-      unsubscribe()
+      pb.collection('telemetry').unsubscribe(`sessionId = '${sessionId}'`)
       if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
     }
   }, [sessionId, retryTrigger])
@@ -239,7 +240,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
   const sendPresence = useCallback(async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
     try {
-      await SkipCloud.collection('telemetry').create({
+      await pb.collection('telemetry').create({
         sessionId,
         type: 'PRESENCE',
         data: [],
@@ -267,7 +268,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
 
       try {
         setSyncStatus('Sincronizando...')
-        await SkipCloud.collection('telemetry').create({
+        await pb.collection('telemetry').create({
           sessionId,
           type,
           data,
