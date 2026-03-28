@@ -35,8 +35,16 @@ export default function TripDetails() {
   }, [paramSessionId, navigate])
 
   const sensors = useInertialSensors()
-  const { syncStatus, sendEvent, remoteData, remoteStats, remoteEventLog, isReceiving } =
-    useCloudSync(sessionId, sensors.isCapturing)
+  const {
+    syncStatus,
+    sendEvent,
+    sendPresence,
+    remoteData,
+    remoteStats,
+    remoteEventLog,
+    isReceiving,
+    mobileConnected,
+  } = useCloudSync(sessionId, sensors.isCapturing)
 
   const [lastSentEventId, setLastSentEventId] = useState<string | null>(null)
 
@@ -114,6 +122,15 @@ export default function TripDetails() {
 
   const prevEventsLength = useRef(displayEvents.length)
 
+  useEffect(() => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent,
+    )
+    if (isMobile && sessionId) {
+      sendPresence()
+    }
+  }, [sessionId, sendPresence])
+
   // Mute audio/visual alerts for the sender (mobile) to focus on driving
   useEffect(() => {
     if (displayEvents.length > prevEventsLength.current) {
@@ -147,7 +164,11 @@ export default function TripDetails() {
   let trafficState = 'yellow'
   if (syncStatus === 'Erro de Conexão' || syncStatus === 'Offline') {
     trafficState = 'red'
-  } else if (syncStatus === 'Aguardando dados...' || (!hasData && isMonitorDevice)) {
+  } else if (
+    syncStatus === 'Aguardando dispositivo móvel' ||
+    syncStatus === 'Aguardando dados...' ||
+    (!hasData && isMonitorDevice)
+  ) {
     trafficState = 'yellow'
   } else {
     trafficState = 'green'
@@ -232,7 +253,7 @@ export default function TripDetails() {
 
       {isMonitorDevice &&
         !sensors.isCapturing &&
-        remoteData.length === 0 &&
+        !mobileConnected &&
         syncStatus !== 'Erro de Conexão' && (
           <Card className="border-primary/20 bg-primary/5 shadow-md animate-in fade-in zoom-in-95 duration-500">
             <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-8">
@@ -262,6 +283,26 @@ export default function TripDetails() {
                     {sessionId}
                   </span>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+      {isMonitorDevice &&
+        !sensors.isCapturing &&
+        mobileConnected &&
+        remoteData.length === 0 &&
+        syncStatus !== 'Erro de Conexão' && (
+          <Card className="border-amber-500/20 bg-amber-500/5 shadow-md animate-in fade-in zoom-in-95 duration-500">
+            <CardContent className="p-6 flex items-center justify-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center animate-pulse">
+                <Activity className="w-6 h-6 text-amber-500" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-foreground">Dispositivo Conectado!</h3>
+                <p className="text-muted-foreground text-sm">
+                  Aguardando o início da transmissão de dados no dispositivo móvel...
+                </p>
               </div>
             </CardContent>
           </Card>

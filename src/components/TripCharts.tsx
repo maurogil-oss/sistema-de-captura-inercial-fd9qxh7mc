@@ -23,8 +23,8 @@ export function TripCharts({ data, animate = true, waitingForData = false }: Tri
         </div>
         <h3 className="text-lg font-semibold text-foreground mb-2">Monitoramento Ao Vivo Ativo</h3>
         <p className="text-sm max-w-md mx-auto">
-          Aguardando a transmissão de dados inerciais de alta frequência (60Hz). Conecte o
-          dispositivo móvel de origem utilizando o link da sessão para transmitir telemetria.
+          Aguardando a transmissão de dados inerciais de alta frequência (60Hz). O dispositivo móvel
+          já está conectado à sessão e pronto para transmitir.
         </p>
       </div>
     )

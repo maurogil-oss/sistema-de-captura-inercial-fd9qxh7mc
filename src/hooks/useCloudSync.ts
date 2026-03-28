@@ -4,6 +4,7 @@ import { TripEvent } from './useInertialSensors'
 
 export type SyncStatus =
   | 'Offline'
+  | 'Aguardando dispositivo móvel'
   | 'Aguardando dados...'
   | 'Ocioso (Edge AI)'
   | 'Sincronizando...'
@@ -17,6 +18,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [remoteStats, setRemoteStats] = useState<any>(null)
   const [remoteEventLog, setRemoteEventLog] = useState<TripEvent[]>([])
   const [isReceiving, setIsReceiving] = useState(false)
+  const [mobileConnected, setMobileConnected] = useState(false)
 
   const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const isCapturingRef = useRef(isCapturing)
@@ -26,15 +28,21 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     if (isCapturing) {
       setSyncStatus('Ocioso (Edge AI)')
     } else {
-      setSyncStatus('Aguardando dados...')
+      setSyncStatus(mobileConnected ? 'Aguardando dados...' : 'Aguardando dispositivo móvel')
     }
-  }, [isCapturing])
+  }, [isCapturing, mobileConnected])
 
   // Connection Error Handling
   useEffect(() => {
     const handleOffline = () => setSyncStatus('Erro de Conexão')
     const handleOnline = () =>
-      setSyncStatus(isCapturingRef.current ? 'Ocioso (Edge AI)' : 'Aguardando dados...')
+      setSyncStatus(
+        isCapturingRef.current
+          ? 'Ocioso (Edge AI)'
+          : mobileConnected
+            ? 'Aguardando dados...'
+            : 'Aguardando dispositivo móvel',
+      )
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       handleOffline()
@@ -47,7 +55,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
       window.removeEventListener('offline', handleOffline)
       window.removeEventListener('online', handleOnline)
     }
-  }, [])
+  }, [mobileConnected])
 
   // Initial fetch and subscription
   useEffect(() => {
@@ -56,7 +64,8 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     setRemoteData([])
     setRemoteStats(null)
     setRemoteEventLog([])
-    setSyncStatus(isCapturingRef.current ? 'Ocioso (Edge AI)' : 'Aguardando dados...')
+    setMobileConnected(false)
+    setSyncStatus(isCapturingRef.current ? 'Ocioso (Edge AI)' : 'Aguardando dispositivo móvel')
 
     const fetchInitialData = async () => {
       try {
@@ -67,10 +76,17 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
 
         if (result.items.length > 0 && !isCapturingRef.current) {
           const latest = result.items[0]
+          const hasData = latest.data && latest.data.length > 0
+
+          if (latest.type === 'PRESENCE' || hasData) {
+            setMobileConnected(true)
+          }
+
           if (latest.data) setRemoteData(latest.data)
           if (latest.stats) setRemoteStats(latest.stats)
           if (latest.events) setRemoteEventLog(latest.events)
-          setSyncStatus('Conectado à Nuvem')
+
+          setSyncStatus(hasData ? 'Conectado à Nuvem' : 'Aguardando dados...')
         }
       } catch (error) {
         console.error('Failed to fetch initial telemetry data', error)
@@ -86,6 +102,16 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
         if (isCapturingRef.current) return // Sender doesn't need to receive its own updates
 
         const payload = event.record
+
+        if (payload.type === 'PRESENCE') {
+          setMobileConnected(true)
+          if (!isCapturingRef.current && navigator.onLine) {
+            setSyncStatus((prev) =>
+              prev === 'Aguardando dispositivo móvel' ? 'Aguardando dados...' : prev,
+            )
+          }
+          return
+        }
 
         setRemoteData((prev) => {
           if (payload.type === 'TRIP_SUMMARY') return payload.data
@@ -117,6 +143,21 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     return () => {
       unsubscribe()
       if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
+    }
+  }, [sessionId])
+
+  const sendPresence = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+    try {
+      await SkipCloud.collection('telemetry').create({
+        sessionId,
+        type: 'PRESENCE',
+        data: [],
+        stats: null,
+        events: [],
+      })
+    } catch (err) {
+      console.error('Failed to send presence', err)
     }
   }, [sessionId])
 
@@ -154,5 +195,14 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     [sessionId],
   )
 
-  return { syncStatus, sendEvent, remoteData, remoteStats, remoteEventLog, isReceiving }
+  return {
+    syncStatus,
+    sendEvent,
+    sendPresence,
+    remoteData,
+    remoteStats,
+    remoteEventLog,
+    isReceiving,
+    mobileConnected,
+  }
 }
