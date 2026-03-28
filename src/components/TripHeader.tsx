@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast'
 interface TripHeaderProps {
   sessionId: string
   syncStatus: string
+  isOnline: boolean
   isCapturing: boolean
   isMonitorDevice: boolean
   isReceiving: boolean
@@ -39,91 +40,8 @@ export function TripHeader(props: TripHeaderProps) {
     })
   }
 
-  const getSyncBadge = () => {
-    if (props.syncStatus === 'Sincronizando...') {
-      return (
-        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm transition-colors">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          Sincronizando...
-        </Badge>
-      )
-    }
-    if (props.syncStatus === 'Conectado à Nuvem' || props.syncStatus === 'Recebendo Atualizações') {
-      return (
-        <Badge
-          className={cn(
-            'gap-1.5 shadow-sm transition-colors duration-300',
-            props.syncStatus === 'Recebendo Atualizações'
-              ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
-              : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30',
-          )}
-        >
-          <span className="relative flex h-2 w-2">
-            <span
-              className={cn(
-                'absolute inline-flex h-full w-full rounded-full opacity-75',
-                props.syncStatus === 'Recebendo Atualizações'
-                  ? 'bg-purple-500 animate-ping'
-                  : 'bg-blue-500',
-              )}
-            ></span>
-            <span
-              className={cn(
-                'relative inline-flex rounded-full h-2 w-2',
-                props.syncStatus === 'Recebendo Atualizações' ? 'bg-purple-500' : 'bg-blue-500',
-              )}
-            ></span>
-          </span>
-          {props.syncStatus === 'Recebendo Atualizações'
-            ? 'Recebendo Dados...'
-            : 'Conectado (Ao Vivo)'}
-        </Badge>
-      )
-    }
-    if (props.syncStatus === 'Ocioso (Edge AI)') {
-      return (
-        <Badge variant="outline" className="border-primary/30 text-primary gap-1.5 bg-primary/5">
-          <Activity className="w-3 h-3" /> Ocioso (Edge AI)
-        </Badge>
-      )
-    }
-    if (props.syncStatus === 'Erro de Conexão') {
-      return (
-        <Badge variant="destructive" className="gap-1.5">
-          <CloudOff className="w-3.5 h-3.5" /> Erro de Conexão
-        </Badge>
-      )
-    }
-    if (props.syncStatus === 'Aguardando dados...') {
-      return (
-        <Badge
-          variant="outline"
-          className="border-amber-500/50 text-amber-600 dark:text-amber-500 gap-1.5 bg-amber-500/5 transition-colors"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-          </span>
-          Aguardando dados...
-        </Badge>
-      )
-    }
-    return (
-      <Badge variant="outline" className="gap-1">
-        <CloudOff className="w-3 h-3" /> Offline
-      </Badge>
-    )
-  }
-
-  const isError =
-    props.syncStatus === 'Erro de Conexão' || props.syncStatus === 'Offline' || !!props.sensorError
-  const isGood =
-    props.syncStatus === 'Conectado à Nuvem' ||
-    props.syncStatus === 'Recebendo Atualizações' ||
-    props.syncStatus === 'Sincronizando...' ||
-    (props.syncStatus === 'Ocioso (Edge AI)' && props.isCapturing)
+  const isError = props.syncStatus === 'Erro de Conexão' || !props.isOnline || !!props.sensorError
+  const isGood = props.isOnline
 
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border/50 pb-6">
@@ -132,7 +50,25 @@ export function TripHeader(props: TripHeaderProps) {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-mono truncate">
             {props.sessionId}
           </h1>
-          {getSyncBadge()}
+          {props.isOnline ? (
+            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm transition-colors">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Online
+            </Badge>
+          ) : (
+            <Badge
+              variant="destructive"
+              className="gap-1.5 bg-red-500/10 text-red-500 border-red-500/20 shadow-sm"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              Offline
+            </Badge>
+          )}
           <Badge
             variant="outline"
             className={cn(

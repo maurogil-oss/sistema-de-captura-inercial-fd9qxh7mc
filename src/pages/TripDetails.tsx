@@ -44,6 +44,7 @@ export default function TripDetails() {
     remoteEventLog,
     isReceiving,
     mobileConnected,
+    isOnline,
   } = useCloudSync(sessionId, sensors.isCapturing)
 
   const [lastSentEventId, setLastSentEventId] = useState<string | null>(null)
@@ -128,8 +129,14 @@ export default function TripDetails() {
     )
     if (isMobile && sessionId) {
       sendPresence()
+      const interval = setInterval(() => {
+        if (!sensors.isCapturing) {
+          sendPresence()
+        }
+      }, 3000)
+      return () => clearInterval(interval)
     }
-  }, [sessionId, sendPresence])
+  }, [sessionId, sendPresence, sensors.isCapturing])
 
   // Mute audio/visual alerts for the sender (mobile) to focus on driving
   useEffect(() => {
@@ -162,7 +169,7 @@ export default function TripDetails() {
   if (!sessionId) return null
 
   let trafficState = 'yellow'
-  if (syncStatus === 'Erro de Conexão' || syncStatus === 'Offline') {
+  if (syncStatus === 'Erro de Conexão' || !isOnline) {
     trafficState = 'red'
   } else if (
     syncStatus === 'Aguardando dispositivo móvel' ||
@@ -227,6 +234,7 @@ export default function TripDetails() {
       <TripHeader
         sessionId={sessionId}
         syncStatus={syncStatus}
+        isOnline={isOnline}
         isCapturing={sensors.isCapturing}
         isMonitorDevice={isMonitorDevice}
         isReceiving={isReceivingRemote}
@@ -253,7 +261,8 @@ export default function TripDetails() {
 
       {isMonitorDevice &&
         !sensors.isCapturing &&
-        !mobileConnected &&
+        !isOnline &&
+        !hasData &&
         syncStatus !== 'Erro de Conexão' && (
           <Card className="border-primary/20 bg-primary/5 shadow-md animate-in fade-in zoom-in-95 duration-500">
             <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-8">
@@ -290,8 +299,8 @@ export default function TripDetails() {
 
       {isMonitorDevice &&
         !sensors.isCapturing &&
-        mobileConnected &&
-        remoteData.length === 0 &&
+        isOnline &&
+        !hasData &&
         syncStatus !== 'Erro de Conexão' && (
           <Card className="border-amber-500/20 bg-amber-500/5 shadow-md animate-in fade-in zoom-in-95 duration-500">
             <CardContent className="p-6 flex items-center justify-center gap-4">

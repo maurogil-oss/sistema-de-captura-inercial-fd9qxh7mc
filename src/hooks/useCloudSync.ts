@@ -19,9 +19,11 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const [remoteEventLog, setRemoteEventLog] = useState<TripEvent[]>([])
   const [isReceiving, setIsReceiving] = useState(false)
   const [mobileConnected, setMobileConnected] = useState(false)
+  const [isOnline, setIsOnline] = useState(false)
 
   const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const isCapturingRef = useRef(isCapturing)
+  const lastHeartbeatRef = useRef<number>(0)
 
   useEffect(() => {
     isCapturingRef.current = isCapturing
@@ -78,15 +80,22 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
           const latest = result.items[0]
           const hasData = latest.data && latest.data.length > 0
 
-          if (latest.type === 'PRESENCE' || hasData) {
+          const timeSinceCreated = Date.now() - new Date(latest.created).getTime()
+          const isRecent = timeSinceCreated < 5000
+
+          if (isRecent && (latest.type === 'PRESENCE' || hasData)) {
             setMobileConnected(true)
+            lastHeartbeatRef.current = Date.now()
+            setIsOnline(true)
           }
 
           if (latest.data) setRemoteData(latest.data)
           if (latest.stats) setRemoteStats(latest.stats)
           if (latest.events) setRemoteEventLog(latest.events)
 
-          setSyncStatus(hasData ? 'Conectado à Nuvem' : 'Aguardando dados...')
+          if (isRecent) {
+            setSyncStatus(hasData ? 'Conectado à Nuvem' : 'Aguardando dados...')
+          }
         }
       } catch (error) {
         console.error('Failed to fetch initial telemetry data', error)
@@ -103,11 +112,16 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
 
         const payload = event.record
 
+        lastHeartbeatRef.current = Date.now()
+        setIsOnline(true)
+
         if (payload.type === 'PRESENCE') {
           setMobileConnected(true)
           if (!isCapturingRef.current && navigator.onLine) {
             setSyncStatus((prev) =>
-              prev === 'Aguardando dispositivo móvel' ? 'Aguardando dados...' : prev,
+              prev === 'Aguardando dispositivo móvel' || prev === 'Offline'
+                ? 'Aguardando dados...'
+                : prev,
             )
           }
           return
@@ -145,6 +159,29 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
       if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
     }
   }, [sessionId])
+
+  // Heartbeat monitor for receiver
+  useEffect(() => {
+    if (isCapturing) {
+      setIsOnline(navigator.onLine)
+      const handleOnline = () => setIsOnline(true)
+      const handleOffline = () => setIsOnline(false)
+      window.addEventListener('online', handleOnline)
+      window.addEventListener('offline', handleOffline)
+      return () => {
+        window.removeEventListener('online', handleOnline)
+        window.removeEventListener('offline', handleOffline)
+      }
+    } else {
+      const interval = setInterval(() => {
+        if (lastHeartbeatRef.current > 0 && Date.now() - lastHeartbeatRef.current > 5000) {
+          setIsOnline(false)
+          setSyncStatus('Offline')
+        }
+      }, 1000)
+      return () => clearInterval(interval)
+    }
+  }, [isCapturing])
 
   const sendPresence = useCallback(async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
@@ -204,5 +241,6 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     remoteEventLog,
     isReceiving,
     mobileConnected,
+    isOnline,
   }
 }
