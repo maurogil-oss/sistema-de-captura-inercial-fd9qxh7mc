@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { extractFeatures, FFTFeatures } from '@/lib/fft'
 
 export interface SensorDataPoint {
   time: string
@@ -17,70 +18,32 @@ export interface TripEvent {
 
 export type PermissionState = 'idle' | 'granted' | 'denied' | 'unsupported'
 
+const FFT_WINDOW_SIZE = 256
+const FFT_OVERLAP = 128
+
 export function useInertialSensors() {
   const [isCapturing, setIsCapturing] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [data, setData] = useState<SensorDataPoint[]>([])
-  const [zenScore, setZenScore] = useState(100)
-  const [phi, setPhi] = useState(100)
-  const [maxJerk, setMaxJerk] = useState(0)
-  const [potholes, setPotholes] = useState(0)
-  const [batteryLevel, setBatteryLevel] = useState<number | null>(null)
-  const [permissionState, setPermissionState] = useState<PermissionState>('idle')
-  const [eventLog, setEventLog] = useState<TripEvent[]>([])
 
-  const [gpsPollingRate, setGpsPollingRate] = useState<1 | 30>(1)
-  const [isStationary, setIsStationary] = useState(false)
-  const [criticalEvent, setCriticalEvent] = useState<{ id: string; type: string } | null>(null)
-  const [isBackground, setIsBackground] = useState(false)
+  const [data, setData] = useState<SensorDataPoint[]>([])
+  const [fftFeatures, setFftFeatures] = useState<FFTFeatures | null>(null)
+  const [zenScore, setZenScore] = useState(100)
+  const [potholes, setPotholes] = useState(0)
+  const [permissionState, setPermissionState] = useState<PermissionState>('idle')
 
   const lastAccelRef = useRef<{ x: number; y: number; z: number } | null>(null)
   const lastTimeRef = useRef<number>(0)
   const dataRef = useRef<SensorDataPoint[]>([])
-  const statsRef = useRef({
-    zenScore: 100,
-    phi: 100,
-    maxJerk: 0,
-    potholes: 0,
-    hasEvent: false,
-    isStationary: false,
-    newEvents: [] as TripEvent[],
-  })
+  const windowBufferRef = useRef<number[]>([])
+  const latestFftRef = useRef<FFTFeatures | null>(null)
+
+  const statsRef = useRef({ zenScore: 100, potholes: 0 })
   const eventCountRef = useRef(0)
   const checkTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const rafRef = useRef<number | undefined>(undefined)
-  const stationaryTimerRef = useRef(0)
-  const isStationaryRef = useRef(false)
 
   useEffect(() => {
-    let battery: any = null
-    const updateBattery = () => {
-      if (battery) setBatteryLevel(battery.level * 100)
-    }
-
-    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
-      ;(navigator as any)
-        .getBattery()
-        .then((b: any) => {
-          battery = b
-          updateBattery()
-          battery.addEventListener('levelchange', updateBattery)
-        })
-        .catch(() => {})
-    }
-
-    return () => {
-      if (battery) {
-        battery.removeEventListener('levelchange', updateBattery)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleVisibilityChange = () => setIsBackground(document.hidden)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
     if (typeof window !== 'undefined') {
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
         navigator.userAgent,
@@ -89,7 +52,6 @@ export function useInertialSensors() {
         setPermissionState('unsupported')
       }
     }
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
   const stopCapture = useCallback(() => {
@@ -115,7 +77,7 @@ export function useInertialSensors() {
       )
       if (!isMobile || !window.DeviceMotionEvent) {
         setPermissionState('unsupported')
-        setError('Sensores não suportados neste dispositivo ou navegador.')
+        setError('Sensores inerciais não suportados ou hardware ausente.')
         setIsWaiting(false)
         return false
       }
@@ -127,9 +89,7 @@ export function useInertialSensors() {
           return true
         } else {
           setPermissionState('denied')
-          setError(
-            'Acesso aos sensores negado. Por favor, habilite nas configurações do navegador.',
-          )
+          setError('Acesso negado. Habilite nas configurações.')
           setIsWaiting(false)
           return false
         }
@@ -139,7 +99,7 @@ export function useInertialSensors() {
       }
     } catch (e) {
       setPermissionState('denied')
-      setError('Acesso aos sensores negado. Por favor, habilite nas configurações do navegador.')
+      setError('Acesso negado. Habilite nas configurações.')
       setIsWaiting(false)
       return false
     }
@@ -152,27 +112,13 @@ export function useInertialSensors() {
     setIsCapturing(true)
     setIsWaiting(false)
     dataRef.current = []
+    windowBufferRef.current = []
     setData([])
-    setEventLog([])
+    setFftFeatures(null)
 
-    statsRef.current = {
-      zenScore: 100,
-      phi: 100,
-      maxJerk: 0,
-      potholes: 0,
-      hasEvent: false,
-      isStationary: false,
-      newEvents: [],
-    }
+    statsRef.current = { zenScore: 100, potholes: 0 }
     setZenScore(100)
-    setPhi(100)
-    setMaxJerk(0)
     setPotholes(0)
-    setCriticalEvent(null)
-    setIsStationary(false)
-    setGpsPollingRate(1)
-    stationaryTimerRef.current = 0
-    isStationaryRef.current = false
 
     lastAccelRef.current = null
     lastTimeRef.current = performance.now()
@@ -180,7 +126,7 @@ export function useInertialSensors() {
 
     checkTimeoutRef.current = setTimeout(() => {
       if (eventCountRef.current === 0) {
-        setError('Sensores não suportados neste dispositivo ou navegador.')
+        setError('Sensores não estão respondendo (Fallback ativado se houver dados parciais).')
         setPermissionState('unsupported')
         setIsCapturing(false)
       }
@@ -192,21 +138,25 @@ export function useInertialSensors() {
 
     const handleMotion = (event: DeviceMotionEvent) => {
       eventCountRef.current += 1
-      const { accelerationIncludingGravity, acceleration } = event
-
-      let acc = acceleration
-      if (!acc || (acc.x === null && acc.y === null && acc.z === null)) {
-        acc = accelerationIncludingGravity
-      }
-
+      const acc = event.acceleration || event.accelerationIncludingGravity
       if (!acc || acc.x === null) return
 
       const now = performance.now()
       const dt = (now - lastTimeRef.current) / 1000
 
       let jerk = 0
+      let gForceZ = (acc.z || 0) / 9.81
       let lateralForce = 0
-      let gForceZ = 1
+
+      const mag = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2 + (acc.z || 0) ** 2)
+
+      // Add to FFT Buffer
+      windowBufferRef.current.push(mag)
+      if (windowBufferRef.current.length >= FFT_WINDOW_SIZE) {
+        const features = extractFeatures(windowBufferRef.current, 60)
+        latestFftRef.current = features
+        windowBufferRef.current = windowBufferRef.current.slice(FFT_OVERLAP)
+      }
 
       if (lastAccelRef.current && dt > 0) {
         const daX = (acc.x || 0) - lastAccelRef.current.x
@@ -215,123 +165,36 @@ export function useInertialSensors() {
 
         jerk = Math.sqrt(daX * daX + daY * daY + daZ * daZ) / dt
 
-        if (jerk > 30) {
-          statsRef.current.zenScore = Math.max(0, statsRef.current.zenScore - 0.2)
-          if (!statsRef.current.hasEvent) {
-            statsRef.current.newEvents.push({
-              id: Date.now().toString(),
-              type: 'HARD_BRAKE',
-              timestamp: new Date().toLocaleTimeString(),
-              severity: jerk > 45 ? 'critical' : 'high',
-              details: `Jerk: ${jerk.toFixed(1)} da/dt`,
-            })
-          }
-          statsRef.current.hasEvent = true
-        }
-
-        if (jerk > statsRef.current.maxJerk) statsRef.current.maxJerk = jerk
-
-        gForceZ = (acc.z || 0) / 9.81
-        if (accelerationIncludingGravity && !acceleration) {
-          gForceZ = (accelerationIncludingGravity.z || 0) / 9.81
-        }
-
-        if (Math.abs(gForceZ) > 2.0) {
-          statsRef.current.potholes += 0.05
-          if (!statsRef.current.hasEvent) {
-            statsRef.current.newEvents.push({
-              id: Date.now().toString(),
-              type: 'POTHOLE',
-              timestamp: new Date().toLocaleTimeString(),
-              severity: Math.abs(gForceZ) > 3.0 ? 'critical' : 'medium',
-              details: `Força G Z: ${gForceZ.toFixed(2)}G`,
-            })
-          }
-          statsRef.current.hasEvent = true
-        }
-
-        if (Math.abs(gForceZ - 1) > 1.2) {
-          statsRef.current.phi = Math.max(0, statsRef.current.phi - 0.5)
-        }
+        if (jerk > 30) statsRef.current.zenScore = Math.max(0, statsRef.current.zenScore - 0.2)
+        if (Math.abs(gForceZ) > 2.0) statsRef.current.potholes += 0.05
 
         lateralForce = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2) / 9.81
-
-        if (lateralForce > 1.0) {
-          if (!statsRef.current.hasEvent) {
-            statsRef.current.newEvents.push({
-              id: Date.now().toString(),
-              type: 'CORNERING',
-              timestamp: new Date().toLocaleTimeString(),
-              severity: lateralForce > 1.5 ? 'critical' : 'high',
-              details: `Lateral: ${lateralForce.toFixed(2)}G`,
-            })
-          }
-          statsRef.current.hasEvent = true
-        }
-
-        const movementDelta = Math.abs(daX) + Math.abs(daY) + Math.abs(daZ)
-        if (movementDelta < 0.2) {
-          stationaryTimerRef.current += dt
-          if (stationaryTimerRef.current > 5) {
-            statsRef.current.isStationary = true
-          }
-        } else {
-          stationaryTimerRef.current = 0
-          statsRef.current.isStationary = false
-        }
       }
 
       lastAccelRef.current = { x: acc.x || 0, y: acc.y || 0, z: acc.z || 0 }
       lastTimeRef.current = now
 
       const date = new Date()
-      const newPoint: SensorDataPoint = {
-        time: `${date.getMinutes()}:${date.getSeconds().toString().padStart(2, '0')}.${Math.floor(
-          date.getMilliseconds() / 100,
-        )}`,
+      dataRef.current.push({
+        time: `${date.getMinutes()}:${date.getSeconds().toString().padStart(2, '0')}`,
         jerk: Math.min(jerk, 50),
         gForceZ,
         lateralForce,
-      }
-
-      dataRef.current.push(newPoint)
-      if (dataRef.current.length > 60) {
-        dataRef.current.shift()
-      }
+      })
+      if (dataRef.current.length > 60) dataRef.current.shift()
     }
 
     window.addEventListener('devicemotion', handleMotion, true)
 
     let lastUpdate = performance.now()
     const updateUI = (now: number) => {
-      if (now - lastUpdate >= 100) {
-        if (dataRef.current.length > 0) {
-          setData([...dataRef.current])
-          setZenScore(statsRef.current.zenScore)
-          setPhi(statsRef.current.phi)
-          setMaxJerk(statsRef.current.maxJerk)
-          setPotholes(Math.floor(statsRef.current.potholes))
-
-          if (statsRef.current.newEvents.length > 0) {
-            setEventLog((prev) => [...prev, ...statsRef.current.newEvents].slice(-50))
-            setCriticalEvent({
-              id: statsRef.current.newEvents[0].id,
-              type: statsRef.current.newEvents[0].type,
-            })
-            statsRef.current.newEvents = []
-          }
-
-          if (statsRef.current.hasEvent) {
-            setTimeout(() => {
-              statsRef.current.hasEvent = false
-            }, 1000)
-          }
-
-          if (statsRef.current.isStationary !== isStationaryRef.current) {
-            setIsStationary(statsRef.current.isStationary)
-            setGpsPollingRate(statsRef.current.isStationary ? 30 : 1)
-            isStationaryRef.current = statsRef.current.isStationary
-          }
+      if (now - lastUpdate >= 200) {
+        // Update UI at 5Hz
+        setData([...dataRef.current])
+        setZenScore(statsRef.current.zenScore)
+        setPotholes(Math.floor(statsRef.current.potholes))
+        if (latestFftRef.current) {
+          setFftFeatures(latestFftRef.current)
         }
         lastUpdate = now
       }
@@ -352,18 +215,11 @@ export function useInertialSensors() {
     startCapture,
     stopCapture,
     data,
+    fftFeatures,
     error,
     zenScore,
-    phi,
-    maxJerk,
     potholes,
-    batteryLevel,
     permissionState,
     requestSensorPermission,
-    gpsPollingRate,
-    isStationary,
-    criticalEvent,
-    isBackground,
-    eventLog,
   }
 }

@@ -54,18 +54,18 @@ export function TripHeader(props: TripHeaderProps) {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-mono truncate">
             {props.sessionId}
           </h1>
-          {props.syncStatus === 'Conectando...' || props.syncStatus === 'Reconectando...' ? (
+          {props.syncStatus === 'Conectando...' || props.syncStatus === 'Reconnecting' ? (
             <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1.5 shadow-sm transition-colors">
               <RefreshCw className="w-3 h-3 animate-spin" />
-              {props.syncStatus}
+              Reconnecting
             </Badge>
-          ) : props.isOnline ? (
+          ) : props.syncStatus === 'Connected' || props.isCapturing ? (
             <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 shadow-sm transition-colors">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              Online
+              Connected
             </Badge>
           ) : (
             <Badge
@@ -144,15 +144,7 @@ export function TripHeader(props: TripHeaderProps) {
           <div className="flex items-center gap-2 ml-2 pl-2 border-l border-border/50">
             <div
               className="flex items-center justify-center w-6 h-6 rounded-full bg-background shadow-sm border border-border shrink-0"
-              title={
-                isError
-                  ? 'Conexão/Fluxo Interrompido'
-                  : isConnecting
-                    ? 'Tentando Conectar...'
-                    : isGood
-                      ? 'Fluxo de Dados Ativo'
-                      : 'Aguardando Conexão'
-              }
+              title={props.syncStatus}
             >
               <div
                 className={cn(

@@ -1,72 +1,60 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Activity,
-  Car,
-  Leaf,
-  AlertTriangle,
-  Sun,
-  CloudRain,
-  CloudLightning,
-  CloudFog,
-  Cpu,
-} from 'lucide-react'
+import { Activity, Car, Wifi, ShieldCheck, Play } from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
-import { ZenGauge } from '@/components/ui-custom/ZenGauge'
 import { MapMock } from '@/components/ui-custom/MapMock'
-import { EventBadge } from '@/components/ui-custom/EventBadge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { DevicePairingCard } from '@/components/DevicePairingCard'
-import { mockKPIs, mockRecentEvents, calculateSeverity, getSeverityLabel } from '@/data/mockData'
-
-const WeatherIcon = ({ weather, className }: { weather: string; className?: string }) => {
-  switch (weather) {
-    case 'RAIN':
-      return <CloudRain className={className} />
-    case 'STORM':
-      return <CloudLightning className={className} />
-    case 'FOG':
-      return <CloudFog className={className} />
-    default:
-      return <Sun className={className} />
-  }
-}
-
-const WeatherLabel = ({ weather }: { weather: string }) => {
-  switch (weather) {
-    case 'RAIN':
-      return 'Pista Molhada'
-    case 'STORM':
-      return 'Tempestade'
-    case 'FOG':
-      return 'Neblina'
-    default:
-      return 'Pista Limpa'
-  }
-}
+import { pb } from '@/lib/skip-cloud'
 
 export default function Index() {
   const [currentSessionId, setCurrentSessionId] = useState<string>('')
+  const [activeSessions, setActiveSessions] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchActive = async () => {
+      try {
+        const result = await pb.collection('telemetry').getList(1, 100, { sort: '-created' })
+        if (!isMounted) return
+
+        // Extract unique recent session/device IDs
+        const recent = new Set<string>()
+        const now = Date.now()
+        result.items.forEach((item: any) => {
+          if (item.sessionId) {
+            const itemTime = new Date(item.created).getTime()
+            // consider active if within last 5 minutes
+            if (now - itemTime < 5 * 60 * 1000) {
+              recent.add(item.sessionId)
+            }
+          }
+        })
+        setActiveSessions(Array.from(recent))
+        setLoading(false)
+      } catch (e) {
+        if (isMounted) setLoading(false)
+      }
+    }
+    fetchActive()
+  }, [])
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Visão Executiva</h1>
-          <p className="text-muted-foreground">Telemetria em tempo real e inteligência de frota.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Visão Geral Consolidada</h1>
+          <p className="text-muted-foreground">
+            Monitoramento global Edge-to-Cloud de dispositivos ativos.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button asChild className="gap-2 bg-emerald-600 hover:bg-emerald-700">
             <Link to={`/trip/${currentSessionId || 'latest-session'}`}>
-              <Activity className="w-4 h-4" />
-              Monitorar Nova Viagem
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="gap-2">
-            <Link to="/sdk">
-              <Cpu className="w-4 h-4" />
-              SDK Orbis
+              <Play className="w-4 h-4" />
+              Monitorar Novo Dispositivo
             </Link>
           </Button>
         </div>
@@ -76,114 +64,88 @@ export default function Index() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Distância Total"
-          value={`${mockKPIs.totalDistance} km`}
+          title="Dispositivos Transmitindo"
+          value={loading ? '--' : activeSessions.length.toString()}
+          icon={Wifi}
+          description="Edge nodes conectados"
+          className="border-emerald-500/30 bg-emerald-500/5"
+        />
+        <StatCard
+          title="Frequência Média Coletada"
+          value="60 Hz"
           icon={Activity}
-          trend="up"
-          trendValue="12%"
+          description="Processamento FFT"
         />
         <StatCard
-          title="Pegada de Carbono"
-          value={`${mockKPIs.carbonFootprint} tCO2`}
-          icon={Leaf}
+          title="Latência Estimada"
+          value="< 150ms"
+          icon={ShieldCheck}
           trend="down"
-          trendValue="5%"
+          trendValue="Estável"
         />
         <StatCard
-          title="Veículos Ativos"
-          value={mockKPIs.activeVehicles}
+          title="Cobertura Espacial"
+          value="Global"
           icon={Car}
-          description="de 50 no total"
-        />
-        <StatCard
-          title="Eventos Críticos"
-          value={mockKPIs.criticalEvents}
-          icon={AlertTriangle}
-          description="Últimas 24h"
-          className="border-destructive/30 bg-destructive/5"
+          description="Agnóstico a rede"
         />
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="col-span-1 flex flex-col glass-panel">
+        <Card className="col-span-1 glass-panel flex flex-col">
           <CardHeader>
-            <CardTitle>Pontuação Zen (Zen Score) Global</CardTitle>
+            <CardTitle>Sessões Ativas</CardTitle>
+            <CardDescription>Visualização individual detalhada</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col items-center justify-center p-6">
-            <ZenGauge score={mockKPIs.zenScore} className="w-48 max-w-full" />
-            <p className="text-sm text-muted-foreground text-center mt-6">
-              O comportamento de direção da frota é{' '}
-              <strong className="text-primary">excelente</strong>. Continue monitorando eventos de
-              frenagem brusca.
-            </p>
+          <CardContent className="flex-1 overflow-auto max-h-[300px]">
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Buscando na nuvem...</p>
+            ) : activeSessions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50">
+                <Wifi className="w-8 h-8 mb-2" />
+                <p className="text-sm">Nenhum dispositivo ativo</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {activeSessions.map((id) => (
+                  <div
+                    key={id}
+                    className="flex justify-between items-center p-3 rounded bg-muted/30 border border-border/50"
+                  >
+                    <div>
+                      <p className="text-xs font-mono font-bold text-primary">{id}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Gravando Dados
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to={`/trip/${id}`}>Ver Live</Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="col-span-1 md:col-span-2 glass-panel overflow-hidden flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between z-10 pb-2">
-            <CardTitle>Mapa de Telemetria ao Vivo</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between z-10 pb-2 bg-background/50 backdrop-blur-sm absolute w-full border-b border-border/50">
+            <CardTitle>Mapa Global de Telemetria</CardTitle>
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
               </span>
-              <span className="text-xs font-mono text-muted-foreground">FLUXO L1 AO VIVO</span>
+              <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
+                Sync Ao Vivo
+              </span>
             </div>
           </CardHeader>
-          <CardContent className="p-0 flex-1 min-h-[300px]">
-            <MapMock />
+          <CardContent className="p-0 flex-1 min-h-[300px] mt-14 bg-muted/10">
+            <MapMock mode="heatmap" />
           </CardContent>
         </Card>
       </div>
-
-      <Card className="glass-panel">
-        <CardHeader>
-          <CardTitle>Eventos Severos Recentes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {mockRecentEvents.map((event) => {
-              const adjustedSeverity = calculateSeverity(event.baseSeverity, event.weather)
-              const severityLabel = getSeverityLabel(adjustedSeverity)
-
-              return (
-                <div
-                  key={event.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col gap-2">
-                      <EventBadge type={event.type} severity={severityLabel} />
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <WeatherIcon weather={event.weather} className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">
-                          <WeatherLabel weather={event.weather} />
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{event.driver}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{event.location}</p>
-                    </div>
-                  </div>
-                  <div className="text-right flex flex-col items-end gap-1">
-                    <div className="text-xs font-mono text-muted-foreground">{event.time}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                        Base {event.baseSeverity} &rarr;
-                      </span>
-                      <span className="text-sm font-bold font-mono px-2 py-0.5 rounded bg-background border border-border/50 shadow-sm">
-                        {adjustedSeverity.toFixed(1)}{' '}
-                        <span className="text-[10px] text-muted-foreground">/10</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

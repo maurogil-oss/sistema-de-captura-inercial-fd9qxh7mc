@@ -1,31 +1,32 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { pb, ConnectionStatus } from '@/lib/skip-cloud'
-import { TripEvent } from './useInertialSensors'
+import { FFTFeatures } from '@/lib/fft'
 
 export type SyncStatus =
   | 'Offline'
   | 'Conectando...'
+  | 'Connected'
+  | 'Reconnecting'
   | 'Aguardando dispositivo móvel'
-  | 'Aguardando dados...'
-  | 'Ocioso (Edge AI)'
-  | 'Sincronizando...'
-  | 'Online'
-  | 'Recebendo Atualizações'
-  | 'Reconectando...'
-  | 'Erro de Conexão'
+
+export interface TelemetryPayload {
+  deviceId: string
+  sessionId: string
+  timestamp: string
+  sensorType: string
+  features: FFTFeatures
+  quality: {
+    signalConfidence: number
+    anomalyScore: number
+  }
+}
 
 export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigger: number = 0) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
-  const [remoteData, setRemoteData] = useState<any[]>([])
-  const [remoteStats, setRemoteStats] = useState<any>(null)
-  const [remoteEventLog, setRemoteEventLog] = useState<TripEvent[]>([])
-  const [isReceiving, setIsReceiving] = useState(false)
+  const [remoteData, setRemoteData] = useState<TelemetryPayload[]>([])
   const [mobileConnected, setMobileConnected] = useState(false)
-  const [isOnline, setIsOnline] = useState(false)
 
-  const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const isCapturingRef = useRef(isCapturing)
-  const lastHeartbeatRef = useRef<number>(0)
   const mobileConnectedRef = useRef(mobileConnected)
 
   useEffect(() => {
@@ -34,98 +35,46 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
 
   useEffect(() => {
     isCapturingRef.current = isCapturing
-    if (isCapturing) {
-      setSyncStatus('Ocioso (Edge AI)')
-    } else {
-      setSyncStatus((prev) =>
-        prev === 'Erro de Conexão' || prev === 'Conectando...' || prev === 'Reconectando...'
-          ? prev
-          : mobileConnected
-            ? 'Aguardando dados...'
-            : 'Aguardando dispositivo móvel',
-      )
+    if (!isCapturing && !mobileConnected) {
+      setSyncStatus('Aguardando dispositivo móvel')
     }
   }, [isCapturing, mobileConnected])
 
-  // Connection Error Handling
-  useEffect(() => {
-    const handleOffline = () => setSyncStatus('Erro de Conexão')
-    const handleOnline = () => {
-      // Re-trigger visual update. SkipCloud will auto-reconnect EventSource and trigger onConnectionChange
-    }
-
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      handleOffline()
-    }
-
-    window.addEventListener('offline', handleOffline)
-    window.addEventListener('online', handleOnline)
-
-    return () => {
-      window.removeEventListener('offline', handleOffline)
-      window.removeEventListener('online', handleOnline)
-    }
-  }, [])
-
-  // Initial fetch and subscription
   useEffect(() => {
     if (typeof window === 'undefined' || !sessionId) return
 
     setRemoteData([])
-    setRemoteStats(null)
-    setRemoteEventLog([])
     setMobileConnected(false)
-    setSyncStatus(isCapturingRef.current ? 'Ocioso (Edge AI)' : 'Conectando...')
-    setIsOnline(false)
+    setSyncStatus('Conectando...')
 
     let isMounted = true
 
     const fetchInitialData = async (retryCount = 0) => {
       try {
-        const result = await pb.collection('telemetry').getList(1, 1, {
+        const result = await pb.collection('telemetry').getList(1, 50, {
           filter: `sessionId = '${sessionId}'`,
           sort: '-created',
         })
 
         if (!isMounted) return
 
-        if (result.items.length > 0 && !isCapturingRef.current) {
-          const latest = result.items[0]
-          const hasData = latest.data && latest.data.length > 0
-
-          const timeSinceCreated = Date.now() - new Date(latest.created).getTime()
-          const isRecent = timeSinceCreated < 5000
-
-          if (isRecent && (latest.type === 'PRESENCE' || hasData)) {
-            setMobileConnected(true)
-            lastHeartbeatRef.current = Date.now()
-          }
-
-          if (latest.data) setRemoteData(latest.data)
-          if (latest.stats) setRemoteStats(latest.stats)
-          if (latest.events) setRemoteEventLog(latest.events)
-
-          if (isRecent) {
-            setSyncStatus(hasData ? 'Online' : 'Aguardando dados...')
-          } else {
-            setSyncStatus('Aguardando dispositivo móvel')
-          }
+        if (result.items.length > 0) {
+          setMobileConnected(true)
+          const validItems = result.items
+            .filter((i) => i.features)
+            .reverse() as unknown as TelemetryPayload[]
+          setRemoteData(validItems)
+          setSyncStatus('Connected')
         } else if (!isCapturingRef.current) {
           setSyncStatus('Aguardando dispositivo móvel')
         }
       } catch (error) {
         if (!isMounted) return
         if (retryCount < 3) {
-          console.warn(`PocketBase: Fetch failed, retrying (${retryCount + 1}/3)...`)
-          setTimeout(() => fetchInitialData(retryCount + 1), 3000)
+          // Silent re-validation
+          setTimeout(() => fetchInitialData(retryCount + 1), 2000)
         } else {
-          console.error('Failed to fetch initial telemetry data', error)
-          // Silent re-validation instead of breaking UI
-          setSyncStatus('Aguardando dispositivo móvel')
-          setIsOnline(false)
-          setTimeout(() => {
-            if (isMounted) fetchInitialData(0)
-          }, 10000)
+          setSyncStatus('Offline')
         }
       }
     }
@@ -134,167 +83,46 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
 
     pb.onConnectionChange((status: ConnectionStatus) => {
       if (!isMounted) return
-      setIsOnline(status === 'connected')
-
-      setSyncStatus((prev) => {
-        if (status === 'error') return 'Erro de Conexão'
-        if (status === 'reconnecting') return 'Reconectando...'
-        if (status === 'connecting') return 'Conectando...'
-
-        // if connected
-        if (!isCapturingRef.current) {
-          return mobileConnectedRef.current
-            ? prev === 'Aguardando dados...'
-              ? prev
-              : 'Online'
-            : 'Aguardando dispositivo móvel'
-        }
-        return 'Ocioso (Edge AI)'
-      })
+      if (status === 'error') setSyncStatus('Offline')
+      if (status === 'reconnecting') setSyncStatus('Reconnecting')
+      if (status === 'connecting') setSyncStatus('Conectando...')
+      if (status === 'connected')
+        setSyncStatus(mobileConnectedRef.current ? 'Connected' : 'Aguardando dispositivo móvel')
     })
 
-    // Subscribe to real-time Skip Cloud (PocketBase) updates
+    // Subscribe to real-time events
     pb.collection('telemetry').subscribe(`sessionId = '${sessionId}'`, (event: any) => {
       if (isCapturingRef.current) return
 
-      const payload = event.record
+      const payload = event.record as TelemetryPayload
+      setMobileConnected(true)
+      setSyncStatus('Connected')
 
-      lastHeartbeatRef.current = Date.now()
-      setIsOnline(true)
-
-      if (payload.type === 'PRESENCE') {
-        setMobileConnected(true)
-        if (!isCapturingRef.current && navigator.onLine) {
-          setSyncStatus((prev) =>
-            prev === 'Aguardando dispositivo móvel' ||
-            prev === 'Offline' ||
-            prev === 'Conectando...' ||
-            prev === 'Reconectando...'
-              ? 'Aguardando dados...'
-              : prev,
-          )
-        }
-        return
+      if (payload.features) {
+        setRemoteData((prev) => [...prev, payload].slice(-60))
       }
-
-      setRemoteData((prev) => {
-        if (payload.type === 'TRIP_SUMMARY') return payload.data
-        const newItems = payload.data || []
-        if (newItems.length === 0) return prev
-
-        // Efficient merge and deduplicate by time to prevent overlap jitter
-        const existingTimes = new Set(prev.map((p) => p.time))
-        const uniqueNewItems = newItems.filter((item: any) => !existingTimes.has(item.time))
-
-        const merged = [...prev, ...uniqueNewItems]
-        return merged.slice(-60) // Keep last 60 points for charts
-      })
-
-      if (payload.stats) setRemoteStats(payload.stats)
-      if (payload.events) setRemoteEventLog(payload.events)
-
-      setIsReceiving(true)
-      setSyncStatus('Recebendo Atualizações')
-
-      if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
-      receivingTimeoutRef.current = setTimeout(() => {
-        setIsReceiving(false)
-        if (!isCapturingRef.current && navigator.onLine) setSyncStatus('Online')
-      }, 500)
     })
 
     return () => {
       isMounted = false
       pb.collection('telemetry').unsubscribe(`sessionId = '${sessionId}'`)
-      if (receivingTimeoutRef.current) clearTimeout(receivingTimeoutRef.current)
     }
   }, [sessionId, retryTrigger])
 
-  // Heartbeat monitor for receiver
-  useEffect(() => {
-    if (isCapturing) {
-      setIsOnline(navigator.onLine)
-      const handleOnline = () => setIsOnline(true)
-      const handleOffline = () => setIsOnline(false)
-      window.addEventListener('online', handleOnline)
-      window.addEventListener('offline', handleOffline)
-      return () => {
-        window.removeEventListener('online', handleOnline)
-        window.removeEventListener('offline', handleOffline)
-      }
-    } else {
-      const interval = setInterval(() => {
-        if (lastHeartbeatRef.current > 0 && Date.now() - lastHeartbeatRef.current > 5000) {
-          setMobileConnected(false)
-          setSyncStatus((prev) =>
-            prev !== 'Erro de Conexão' && prev !== 'Reconectando...' && prev !== 'Conectando...'
-              ? 'Aguardando dispositivo móvel'
-              : prev,
-          )
-        }
-      }, 1000)
-      return () => clearInterval(interval)
+  const sendPayload = useCallback(async (payload: TelemetryPayload) => {
+    if (!isCapturingRef.current) return
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setSyncStatus('Offline')
+      return
     }
-  }, [isCapturing])
 
-  const sendPresence = useCallback(async () => {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) return
     try {
-      await pb.collection('telemetry').create({
-        sessionId,
-        type: 'PRESENCE',
-        data: [],
-        stats: null,
-        events: [],
-      })
+      await pb.collection('telemetry').create(payload)
+      if (navigator.onLine) setSyncStatus('Connected')
     } catch (err) {
-      console.error('Failed to send presence', err)
+      setSyncStatus('Offline')
     }
-  }, [sessionId])
+  }, [])
 
-  const sendEvent = useCallback(
-    async (
-      data: any[],
-      stats: any,
-      events: TripEvent[],
-      type: 'CRITICAL_EVENT' | 'TRIP_SUMMARY' | 'TELEMETRY_UPDATE',
-    ) => {
-      if (!isCapturingRef.current) return
-
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        setSyncStatus('Erro de Conexão')
-        return
-      }
-
-      try {
-        setSyncStatus('Sincronizando...')
-        await pb.collection('telemetry').create({
-          sessionId,
-          type,
-          data,
-          stats,
-          events,
-        })
-
-        setTimeout(() => {
-          if (isCapturingRef.current && navigator.onLine) setSyncStatus('Ocioso (Edge AI)')
-        }, 500)
-      } catch (err) {
-        setSyncStatus('Erro de Conexão')
-      }
-    },
-    [sessionId],
-  )
-
-  return {
-    syncStatus,
-    sendEvent,
-    sendPresence,
-    remoteData,
-    remoteStats,
-    remoteEventLog,
-    isReceiving,
-    mobileConnected,
-    isOnline,
-  }
+  return { syncStatus, sendPayload, remoteData, mobileConnected }
 }

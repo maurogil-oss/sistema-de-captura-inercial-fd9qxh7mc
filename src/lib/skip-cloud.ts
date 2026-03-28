@@ -1,7 +1,7 @@
 /**
- * Skip Cloud (PocketBase) SDK Implementation
- * Simulated PocketBase SDK using native fetch and EventSource to match exactly the
- * PocketBase SDK signature, implementing automatic reconnection with exponential backoff.
+ * Skip Cloud SDK Implementation
+ * Native fetch and EventSource wrapper matching exactly the PocketBase SDK signature,
+ * implementing automatic reconnection with exponential backoff.
  */
 
 const PB_URL = import.meta.env.VITE_PB_URL || 'https://skipcloud.pockethost.io'
@@ -158,7 +158,6 @@ class RealtimeService {
       })
 
       this.sse.onerror = () => {
-        console.warn('PocketBase: Real-time connection error. Reconnecting...')
         this.sse?.close()
         this.sse = null
         this.client.connectionStatus = 'error'
@@ -175,7 +174,6 @@ class RealtimeService {
             const payload = JSON.parse(e.data)
             const subs = this.subscriptions.get(collection) || []
             subs.forEach((sub) => {
-              // Simulate PocketBase client-side filtering support
               if (sub.topic === '*' || !sub.topic) {
                 sub.callback(payload)
               } else if (sub.topic.includes('sessionId')) {
