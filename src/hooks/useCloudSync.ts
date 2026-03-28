@@ -24,6 +24,11 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
   const receivingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const isCapturingRef = useRef(isCapturing)
   const lastHeartbeatRef = useRef<number>(0)
+  const mobileConnectedRef = useRef(mobileConnected)
+
+  useEffect(() => {
+    mobileConnectedRef.current = mobileConnected
+  }, [mobileConnected])
 
   useEffect(() => {
     isCapturingRef.current = isCapturing
@@ -99,10 +104,23 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
         }
       } catch (error) {
         console.error('Failed to fetch initial telemetry data', error)
+        setSyncStatus('Erro de Conexão')
+        setIsOnline(false)
       }
     }
 
     fetchInitialData()
+
+    SkipCloud.onConnectionChange((connected) => {
+      setIsOnline(connected)
+      setSyncStatus((prev) => {
+        if (!connected && !isCapturingRef.current) return 'Erro de Conexão'
+        if (connected && prev === 'Erro de Conexão') {
+          return mobileConnectedRef.current ? 'Aguardando dados...' : 'Aguardando dispositivo móvel'
+        }
+        return prev
+      })
+    })
 
     // Subscribe to real-time Skip Cloud (PocketBase) updates
     const unsubscribe = SkipCloud.collection('telemetry').subscribe(
@@ -175,8 +193,10 @@ export function useCloudSync(sessionId: string, isCapturing: boolean) {
     } else {
       const interval = setInterval(() => {
         if (lastHeartbeatRef.current > 0 && Date.now() - lastHeartbeatRef.current > 5000) {
-          setIsOnline(false)
-          setSyncStatus('Offline')
+          setMobileConnected(false)
+          setSyncStatus((prev) =>
+            prev !== 'Erro de Conexão' ? 'Aguardando dispositivo móvel' : prev,
+          )
         }
       }, 1000)
       return () => clearInterval(interval)
