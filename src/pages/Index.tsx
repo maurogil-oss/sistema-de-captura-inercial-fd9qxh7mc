@@ -12,6 +12,7 @@ import { pb } from '@/lib/skip-cloud'
 export default function Index() {
   const [currentSessionId, setCurrentSessionId] = useState<string>('')
   const [activeSessions, setActiveSessions] = useState<string[]>([])
+  const [lastGlobalSync, setLastGlobalSync] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -24,9 +25,13 @@ export default function Index() {
         // Extract unique recent session/device IDs
         const recent = new Set<string>()
         const now = Date.now()
+        let latestSync: number | null = null
         result.items.forEach((item: any) => {
           if (item.sessionId) {
             const itemTime = new Date(item.created).getTime()
+            if (!latestSync || itemTime > latestSync) {
+              latestSync = itemTime
+            }
             // consider active if within last 5 minutes
             if (now - itemTime < 5 * 60 * 1000) {
               recent.add(item.sessionId)
@@ -34,6 +39,7 @@ export default function Index() {
           }
         })
         setActiveSessions(Array.from(recent))
+        if (latestSync) setLastGlobalSync(new Date(latestSync))
         setLoading(false)
       } catch (e) {
         if (isMounted) setLoading(false)
@@ -74,10 +80,10 @@ export default function Index() {
           className="border-emerald-500/30 bg-emerald-500/5"
         />
         <StatCard
-          title="Frequência Média Coletada"
-          value="60 Hz"
+          title="Último Batch Recebido"
+          value={lastGlobalSync ? lastGlobalSync.toLocaleTimeString() : '--'}
           icon={Activity}
-          description="Processamento FFT"
+          description={loading ? 'Buscando...' : 'Sincronização global'}
         />
         <StatCard
           title="Latência Estimada"
@@ -116,9 +122,15 @@ export default function Index() {
                     className="flex justify-between items-center p-3 rounded bg-muted/30 border border-border/50"
                   >
                     <div>
-                      <p className="text-xs font-mono font-bold text-primary">{id}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-mono font-bold text-primary">{id}</p>
+                        <span className="flex h-2 w-2 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                      </div>
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                        Gravando Dados
+                        Batch Sync Ativo
                       </p>
                     </div>
                     <Button variant="outline" size="sm" asChild>
@@ -136,11 +148,11 @@ export default function Index() {
             <CardTitle>Mapa Global de Telemetria</CardTitle>
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
               </span>
               <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
-                Sync Ao Vivo
+                Recebendo Batches
               </span>
             </div>
           </CardHeader>

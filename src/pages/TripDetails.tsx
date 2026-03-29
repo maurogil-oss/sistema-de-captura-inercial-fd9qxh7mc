@@ -13,6 +13,7 @@ import {
   FileJson,
   Clock,
   Database,
+  Cloud,
 } from 'lucide-react'
 import { TripCharts } from '@/components/TripCharts'
 import { MapMock } from '@/components/ui-custom/MapMock'
@@ -51,6 +52,8 @@ export default function TripDetails() {
     latency,
     timestampDrift,
     forceReconnect,
+    isSyncing,
+    lastSyncTime,
   } = useCloudSync(sessionId, sensors.isCapturing, retryTrigger)
 
   const latestFftRef = useRef(sensors.fftFeatures)
@@ -77,7 +80,7 @@ export default function TripDetails() {
           anomalyScore: sensors.potholes > 0 ? 0.75 : 0.1,
         },
       })
-    }, 1000)
+    }, 500)
     return () => clearInterval(interval)
   }, [sensors.isCapturing, sendTelemetry, sessionId, sensors.potholes])
 
@@ -105,9 +108,43 @@ export default function TripDetails() {
         sensorError={sensors.error}
       />
 
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {sensors.isCapturing && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-card/50 backdrop-blur-sm rounded-full border shadow-sm text-xs font-medium w-fit transition-all duration-300">
+              <Database className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground">Buffer:</span>
+              <span
+                className={cn(
+                  'font-bold',
+                  pendingSyncCount > 800 ? 'text-destructive' : 'text-primary',
+                )}
+              >
+                {pendingSyncCount} / 1000
+              </span>
+            </div>
+          )}
+          {(isSyncing || lastSyncTime) && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-card/50 backdrop-blur-sm rounded-full border shadow-sm text-xs font-medium w-fit transition-all duration-300">
+              <Cloud
+                className={cn(
+                  'w-3.5 h-3.5',
+                  isSyncing ? 'text-blue-500 animate-bounce' : 'text-muted-foreground',
+                )}
+              />
+              <span className="text-muted-foreground">
+                {isSyncing ? 'Syncing Batch...' : 'Last Sync:'}
+              </span>
+              {!isSyncing && lastSyncTime && (
+                <span className="font-bold text-foreground">
+                  {new Date(lastSyncTime).toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-card/50 backdrop-blur-sm rounded-full border shadow-sm text-xs font-medium w-fit transition-all duration-300">
-          <Database className="w-3.5 h-3.5 text-muted-foreground" />
+          <Activity className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-muted-foreground hidden sm:inline">Backend Health:</span>
           <span
             className={cn(
@@ -160,7 +197,9 @@ export default function TripDetails() {
             {(syncErrorType === 'serialization' || syncErrorType === 'schema') && (
               <FileJson className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
             )}
-            {(syncErrorType === 'payload_size' || syncErrorType === 'network') && (
+            {(syncErrorType === 'payload_size' ||
+              syncErrorType === 'network' ||
+              syncErrorType === 'buffer_full') && (
               <AlertCircle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
             )}
 
@@ -173,6 +212,7 @@ export default function TripDetails() {
                 {syncErrorType === 'serialization' && 'JSON Serialization Error'}
                 {syncErrorType === 'schema' && 'Invalid Payload Schema'}
                 {syncErrorType === 'payload_size' && 'Payload Too Large'}
+                {syncErrorType === 'buffer_full' && 'Buffer Limit Reached'}
                 {syncErrorType === 'network' && 'Network Connectivity Error'}
               </AlertTitle>
               <AlertDescription className="text-destructive/90 text-sm">
@@ -189,6 +229,8 @@ export default function TripDetails() {
                   'The telemetry payload does not match the required schema.'}
                 {syncErrorType === 'payload_size' &&
                   'The data payload exceeds the maximum allowed size limit.'}
+                {syncErrorType === 'buffer_full' &&
+                  'The local memory buffer is full. Please ensure a stable connection to sync data.'}
                 {syncErrorType === 'network' && 'A general network connectivity issue occurred.'}
               </AlertDescription>
             </div>

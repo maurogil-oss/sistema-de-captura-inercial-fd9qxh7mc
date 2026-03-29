@@ -21,8 +21,18 @@ export type SyncErrorType =
   | 'server'
   | 'serialization'
   | 'payload_size'
+  | 'buffer_full'
   | 'network'
   | 'schema'
+
+export interface TelemetryPoint {
+  timestamp: string
+  features: FFTFeatures
+  quality: {
+    signalConfidence: number
+    anomalyScore: number
+  }
+}
 
 export interface TelemetryPayload {
   deviceId: string
@@ -30,11 +40,12 @@ export interface TelemetryPayload {
   transmissionId?: string
   timestamp: string
   sensorType: string
-  features: FFTFeatures
-  quality: {
+  features?: FFTFeatures
+  quality?: {
     signalConfidence: number
     anomalyScore: number
   }
+  points?: TelemetryPoint[]
   protocolVersion?: string
 }
 
@@ -44,16 +55,9 @@ const payloadSchema = z.object({
   transmissionId: z.string().optional(),
   timestamp: z.string(),
   sensorType: z.string(),
-  features: z
-    .object({
-      fftPeak: z.number().nullable().optional(),
-      fftEnergy: z.number().nullable().optional(),
-    })
-    .passthrough(),
-  quality: z.object({
-    signalConfidence: z.number(),
-    anomalyScore: z.number(),
-  }),
+  features: z.any().optional(),
+  quality: z.any().optional(),
+  points: z.array(z.any()).optional(),
   protocolVersion: z.string().optional(),
 })
 
@@ -68,9 +72,12 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
   const [latency, setLatency] = useState(0)
   const [timestampDrift, setTimestampDrift] = useState(0)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null)
 
+  const MAX_BUFFER_SIZE = 1000
   const isCapturingRef = useRef(isCapturing)
-  const offlineQueue = useRef<TelemetryPayload[]>([])
+  const telemetryBuffer = useRef<TelemetryPoint[]>([])
   const mobileConnectedRef = useRef(mobileConnected)
   const lastTimestampRef = useRef<number>(0)
   const syncStatusRef = useRef(syncStatus)
@@ -201,7 +208,17 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
         }
       }
 
-      if (payload.features) {
+      setLastSyncTime(new Date().toISOString())
+
+      if (payload.points && Array.isArray(payload.points)) {
+        const newPoints = payload.points.map((p) => ({
+          ...payload,
+          timestamp: p.timestamp,
+          features: p.features,
+          quality: p.quality,
+        }))
+        setRemoteData((prev) => [...prev, ...newPoints].slice(-120))
+      } else if (payload.features) {
         const { fftPeak, fftEnergy } = payload.features
         if (fftPeak == null || isNaN(fftPeak) || fftEnergy == null || isNaN(fftEnergy)) {
           addLog(
@@ -211,7 +228,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
           )
           return
         }
-        setRemoteData((prev) => [...prev, payload].slice(-60))
+        setRemoteData((prev) => [...prev, payload].slice(-120))
       }
     })
 
@@ -339,87 +356,97 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     pb.reconnect()
   }, [addLog])
 
-  const sendTelemetry = useCallback(
-    async (payload: TelemetryPayload) => {
-      if (!isCapturingRef.current) return
+  const flushBuffer = useCallback(async () => {
+    if (!isCapturingRef.current) return
+    if (telemetryBuffer.current.length === 0) return
+    if (syncStatusRef.current !== 'Transmission Active' || !transmissionIdRef.current) return
 
-      if (syncStatusRef.current !== 'Transmission Active' || !transmissionIdRef.current) {
-        addLog('warning', 'sendTelemetry skipped: Transmission not active yet.', 'Network')
-        return
-      }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setSyncStatus('Offline')
+      return
+    }
 
-      payload.transmissionId = transmissionIdRef.current
-      payload.protocolVersion = '1.0.0'
+    setIsSyncing(true)
+    const batchSize = Math.min(telemetryBuffer.current.length, 100)
+    const pointsToSync = telemetryBuffer.current.slice(0, batchSize)
 
-      try {
-        payloadSchema.parse(payload)
-      } catch (err) {
-        addLog('error', 'Payload schema validation failed: Missing required fields', 'Validation')
-        setSyncErrorType('schema')
-        return
-      }
+    const payload: TelemetryPayload = {
+      deviceId: sessionId,
+      sessionId: sessionId,
+      transmissionId: transmissionIdRef.current,
+      timestamp: new Date().toISOString(),
+      sensorType: 'inertial',
+      points: pointsToSync,
+      protocolVersion: '1.1.0',
+    }
 
-      let serialized = ''
-      try {
-        serialized = JSON.stringify(payload)
-      } catch (err) {
-        addLog('error', 'Payload serialization failed (Invalid JSON)', 'Serialization')
-        setSyncErrorType('serialization')
-        return
-      }
-
+    try {
+      let serialized = JSON.stringify(payload)
       const payloadSize = new Blob([serialized]).size
       if (payloadSize > 100 * 1024) {
-        addLog('error', `Payload Too Large: ${payloadSize} bytes`, 'Network')
+        addLog('error', `Batch Payload Too Large: ${payloadSize} bytes`, 'Network')
         setSyncErrorType('payload_size')
+        telemetryBuffer.current = telemetryBuffer.current.slice(batchSize)
+        setPendingSyncCount(telemetryBuffer.current.length)
+        setIsSyncing(false)
         return
       }
 
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        offlineQueue.current.push(payload)
-        setPendingSyncCount(offlineQueue.current.length)
-        setSyncStatus('Offline')
-        addLog('warning', 'Device offline. Payload queued.', 'Network')
+      await pb.collection('telemetry').create(payload)
+
+      telemetryBuffer.current = telemetryBuffer.current.slice(batchSize)
+      setPendingSyncCount(telemetryBuffer.current.length)
+      setLastSyncTime(new Date().toISOString())
+      setSyncStatus('Transmission Active')
+      setSyncErrorType('none')
+    } catch (err: any) {
+      setSyncStatus('Retrying')
+      if (err.type) {
+        setSyncErrorType(err.type as SyncErrorType)
+        addLog('error', `Batch transmission failed: ${err.message}`, 'Network')
+      } else {
+        setSyncErrorType('network')
+        addLog('error', 'Failed to send batch. Kept in buffer.', 'Network')
+      }
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [sessionId, addLog])
+
+  useEffect(() => {
+    if (!isCapturing) return
+    const interval = setInterval(() => {
+      flushBuffer()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [isCapturing, flushBuffer])
+
+  const sendTelemetry = useCallback(
+    (payload: TelemetryPayload) => {
+      if (!isCapturingRef.current) return
+
+      if (telemetryBuffer.current.length >= MAX_BUFFER_SIZE) {
+        addLog(
+          'error',
+          'Local buffer full. Dropping telemetry data to prevent memory overflow.',
+          'Memory',
+        )
+        setSyncErrorType('buffer_full')
         return
       }
 
-      const trySend = async (p: TelemetryPayload) => {
-        await pb.collection('telemetry').create(p)
+      if (!payload.features || !payload.quality) return
+
+      const point: TelemetryPoint = {
+        timestamp: payload.timestamp,
+        features: payload.features,
+        quality: payload.quality,
       }
 
-      try {
-        if (offlineQueue.current.length > 0) {
-          addLog('info', `Flushing ${offlineQueue.current.length} queued payloads...`, 'Network')
-          for (const p of offlineQueue.current) {
-            await trySend(p)
-          }
-          offlineQueue.current = []
-          setPendingSyncCount(0)
-        }
-
-        await trySend(payload)
-        if (navigator.onLine) {
-          setSyncStatus('Transmission Active')
-          setSyncErrorType('none')
-        }
-      } catch (err: any) {
-        offlineQueue.current.push(payload)
-        setPendingSyncCount(offlineQueue.current.length)
-        setSyncStatus('Offline')
-
-        if (err.type) {
-          setSyncErrorType(err.type as SyncErrorType)
-          addLog('error', `Transmission failed: ${err.message}`, 'Network')
-        } else {
-          setSyncErrorType('network')
-          addLog('error', 'Failed to send payload. Queued.', 'Network')
-        }
-
-        addLog('warning', 'Triggering retryOnFailure for sendTelemetry...', 'Network')
-        setTimeout(() => forceReconnect(), 2000)
-      }
+      telemetryBuffer.current.push(point)
+      setPendingSyncCount(telemetryBuffer.current.length)
     },
-    [addLog, forceReconnect],
+    [addLog],
   )
 
   return {
@@ -432,5 +459,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     latency,
     timestampDrift,
     forceReconnect,
+    isSyncing,
+    lastSyncTime,
   }
 }
