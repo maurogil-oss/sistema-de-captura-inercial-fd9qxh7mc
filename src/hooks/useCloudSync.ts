@@ -384,11 +384,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
       }
 
       const trySend = async (p: TelemetryPayload) => {
-        try {
-          await pb.collection('telemetry').create(p)
-        } catch (err: any) {
-          throw err
-        }
+        await pb.collection('telemetry').create(p)
       }
 
       try {
