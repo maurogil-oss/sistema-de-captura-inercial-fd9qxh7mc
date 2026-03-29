@@ -1,12 +1,23 @@
 /**
  * Skip Cloud SDK Implementation
  * Native fetch and EventSource wrapper matching exactly the PocketBase SDK signature,
- * implementing automatic reconnection with exponential backoff.
+ * implementing automatic reconnection with exponential backoff and error diagnostics.
  */
 
 const PB_URL = import.meta.env.VITE_PB_URL || 'https://skipcloud.pockethost.io'
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'error' | 'reconnecting'
+
+export class SkipCloudError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+    public type?: string,
+  ) {
+    super(message)
+    this.name = 'SkipCloudError'
+  }
+}
 
 class AuthStore {
   isValid = true
@@ -28,34 +39,75 @@ class RecordService {
     if (options.filter) params.append('filter', options.filter)
     if (options.sort) params.append('sort', options.sort)
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+
     try {
       const res = await fetch(
         `${this.client.baseUrl}/api/collections/${this.name}/records?${params.toString()}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.client.authStore.token}`,
+            'X-Protocol-Version': '1.0.0',
+          },
+          signal: controller.signal,
+        },
       )
-      if (!res.ok) throw new Error('Failed to fetch')
+      clearTimeout(timeoutId)
+
+      if (!res.ok) {
+        if (res.status === 401) throw new SkipCloudError('Unauthorized', 401, 'auth')
+        if (res.status === 403) throw new SkipCloudError('Forbidden / CORS', 403, 'cors')
+        if (res.status === 503) throw new SkipCloudError('Service Unavailable', 503, 'server')
+        if (res.status >= 500) throw new SkipCloudError('Server Error', res.status, 'server')
+        throw new SkipCloudError('Failed to fetch', res.status, 'api')
+      }
       return await res.json()
-    } catch (e) {
-      throw new Error('Failed to fetch')
+    } catch (e: any) {
+      clearTimeout(timeoutId)
+      if (e.name === 'AbortError') throw new SkipCloudError('Connection Timeout', 408, 'timeout')
+      if (e instanceof SkipCloudError) throw e
+      throw new SkipCloudError('Network Error', 0, 'network')
     }
   }
 
   async getFirstListItem(filter: string, options: any = {}) {
     const res = await this.getList(1, 1, { ...options, filter })
-    if (res.items.length === 0) throw new Error('ClientResponseError 404')
+    if (res.items.length === 0) throw new SkipCloudError('Not Found', 404, 'api')
     return res.items[0]
   }
 
   async create(data: any, options: any = {}) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+
     try {
       const res = await fetch(`${this.client.baseUrl}/api/collections/${this.name}/records`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.client.authStore.token}`,
+          'X-Protocol-Version': '1.0.0',
+        },
         body: JSON.stringify(data),
+        signal: controller.signal,
       })
-      if (!res.ok) throw new Error('Failed to create')
+      clearTimeout(timeoutId)
+
+      if (!res.ok) {
+        if (res.status === 401) throw new SkipCloudError('Unauthorized', 401, 'auth')
+        if (res.status === 403) throw new SkipCloudError('Forbidden / CORS', 403, 'cors')
+        if (res.status === 503) throw new SkipCloudError('Service Unavailable', 503, 'server')
+        if (res.status >= 500) throw new SkipCloudError('Server Error', res.status, 'server')
+        throw new SkipCloudError('Failed to create', res.status, 'api')
+      }
       return await res.json()
-    } catch (e) {
-      throw new Error('Failed to create')
+    } catch (e: any) {
+      clearTimeout(timeoutId)
+      if (e.name === 'AbortError') throw new SkipCloudError('Connection Timeout', 408, 'timeout')
+      if (e instanceof SkipCloudError) throw e
+      throw new SkipCloudError('Network Error', 0, 'network')
     }
   }
 
@@ -119,16 +171,18 @@ class RealtimeService {
 
   private async submitSubscriptions() {
     if (!this.clientId) return
-
     const subs = Array.from(this.subscriptions.keys())
-
     try {
-      await fetch(`${this.client.baseUrl}/api/realtime`, {
+      const res = await fetch(`${this.client.baseUrl}/api/realtime`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.client.authStore.token}`,
+        },
         body: JSON.stringify({ clientId: this.clientId, subscriptions: subs }),
       })
-    } catch (err) {
+      if (res.status === 403) throw new SkipCloudError('CORS Blocked', 403, 'cors')
+    } catch (err: any) {
       console.warn('PocketBase: Failed to submit real-time subscriptions', err)
     }
   }
@@ -149,7 +203,22 @@ class RealtimeService {
     try {
       this.sse = new EventSource(`${this.client.baseUrl}/api/realtime`)
 
+      const wsTimeout = setTimeout(() => {
+        if (this.sse && this.sse.readyState === EventSource.CONNECTING) {
+          this.sse.close()
+          this.sse = null
+          this.client.connectionStatus = 'error'
+          this.client.notifyConnectionChange(
+            new SkipCloudError('Connection Timeout', 408, 'timeout'),
+          )
+          this.reconnectAttempts++
+          if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout)
+          this.reconnectTimeout = setTimeout(() => this.connect(), this.reconnectDelay)
+        }
+      }, 15000)
+
       this.sse.addEventListener('PB_CONNECT', (e: any) => {
+        clearTimeout(wsTimeout)
         try {
           const data = JSON.parse(e.data)
           this.clientId = data.clientId
@@ -163,6 +232,7 @@ class RealtimeService {
       })
 
       this.sse.onerror = () => {
+        clearTimeout(wsTimeout)
         this.sse?.close()
         this.sse = null
         this.client.connectionStatus = 'error'
@@ -220,7 +290,8 @@ export class PocketBase {
   autoCancellation = true
   realtime: RealtimeService
   connectionStatus: ConnectionStatus = 'connecting'
-  private connectionListeners: Array<(status: ConnectionStatus) => void> = []
+  private connectionListeners: Array<(status: ConnectionStatus, error?: SkipCloudError) => void> =
+    []
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
@@ -231,7 +302,7 @@ export class PocketBase {
     return new RecordService(this, name)
   }
 
-  onConnectionChange(callback: (status: ConnectionStatus) => void) {
+  onConnectionChange(callback: (status: ConnectionStatus, error?: SkipCloudError) => void) {
     this.connectionListeners.push(callback)
     callback(this.connectionStatus)
     return () => {
@@ -239,8 +310,8 @@ export class PocketBase {
     }
   }
 
-  notifyConnectionChange() {
-    this.connectionListeners.forEach((cb) => cb(this.connectionStatus))
+  notifyConnectionChange(error?: SkipCloudError) {
+    this.connectionListeners.forEach((cb) => cb(this.connectionStatus, error))
   }
 
   reconnect() {
