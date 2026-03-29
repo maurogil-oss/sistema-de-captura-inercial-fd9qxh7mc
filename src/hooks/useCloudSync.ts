@@ -27,8 +27,13 @@ export type SyncErrorType =
 
 export interface TelemetryPoint {
   timestamp: string
-  features: FFTFeatures
-  quality: {
+  features?: FFTFeatures
+  raw?: {
+    jerk: number
+    gForceZ: number
+    lateralForce: number
+  }
+  quality?: {
     signalConfidence: number
     anomalyScore: number
   }
@@ -41,6 +46,11 @@ export interface TelemetryPayload {
   timestamp: string
   sensorType: string
   features?: FFTFeatures
+  raw?: {
+    jerk: number
+    gForceZ: number
+    lateralForce: number
+  }
   quality?: {
     signalConfidence: number
     anomalyScore: number
@@ -56,10 +66,13 @@ const payloadSchema = z.object({
   timestamp: z.string(),
   sensorType: z.string(),
   features: z.any().optional(),
+  raw: z.any().optional(),
   quality: z.any().optional(),
   points: z.array(z.any()).optional(),
   protocolVersion: z.string().optional(),
 })
+
+const BATCH_THRESHOLD = 300 // 60Hz * 5s = 300 points threshold for battery-optimized network wake-up
 
 export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigger: number = 0) {
   const { addLog } = useDebug()
@@ -78,6 +91,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
   const MAX_BUFFER_SIZE = 1000
   const isCapturingRef = useRef(isCapturing)
   const telemetryBuffer = useRef<TelemetryPoint[]>([])
+  const isSyncingRef = useRef(false)
   const mobileConnectedRef = useRef(mobileConnected)
   const lastTimestampRef = useRef<number>(0)
   const syncStatusRef = useRef(syncStatus)
@@ -360,14 +374,16 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     if (!isCapturingRef.current) return
     if (telemetryBuffer.current.length === 0) return
     if (syncStatusRef.current !== 'Transmission Active' || !transmissionIdRef.current) return
+    if (isSyncingRef.current) return
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setSyncStatus('Offline')
       return
     }
 
+    isSyncingRef.current = true
     setIsSyncing(true)
-    const batchSize = Math.min(telemetryBuffer.current.length, 100)
+    const batchSize = Math.min(telemetryBuffer.current.length, BATCH_THRESHOLD * 2)
     const pointsToSync = telemetryBuffer.current.slice(0, batchSize)
 
     const payload: TelemetryPayload = {
@@ -383,12 +399,14 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     try {
       let serialized = JSON.stringify(payload)
       const payloadSize = new Blob([serialized]).size
-      if (payloadSize > 100 * 1024) {
+      if (payloadSize > 200 * 1024) {
+        // Increased tolerance for 60Hz payloads
         addLog('error', `Batch Payload Too Large: ${payloadSize} bytes`, 'Network')
         setSyncErrorType('payload_size')
         telemetryBuffer.current = telemetryBuffer.current.slice(batchSize)
         setPendingSyncCount(telemetryBuffer.current.length)
         setIsSyncing(false)
+        isSyncingRef.current = false
         return
       }
 
@@ -401,15 +419,18 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
       setSyncErrorType('none')
     } catch (err: any) {
       setSyncStatus('Retrying')
+      // Important: On failure, we DO NOT slice the buffer. Data is preserved for the next retry
+      // preventing battery drainage from immediate continuous network retries while preserving data integrity.
       if (err.type) {
         setSyncErrorType(err.type as SyncErrorType)
         addLog('error', `Batch transmission failed: ${err.message}`, 'Network')
       } else {
         setSyncErrorType('network')
-        addLog('error', 'Failed to send batch. Kept in buffer.', 'Network')
+        addLog('error', 'Failed to send batch. Kept locally buffered.', 'Network')
       }
     } finally {
       setIsSyncing(false)
+      isSyncingRef.current = false
     }
   }, [sessionId, addLog])
 
@@ -435,18 +456,28 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
         return
       }
 
-      if (!payload.features || !payload.quality) return
+      if (!payload.features && !payload.raw) return
 
-      const point: TelemetryPoint = {
-        timestamp: payload.timestamp,
-        features: payload.features,
-        quality: payload.quality,
+      if (payload.points && payload.points.length > 0) {
+        telemetryBuffer.current.push(...payload.points)
+      } else {
+        const point: TelemetryPoint = {
+          timestamp: payload.timestamp,
+          features: payload.features,
+          raw: payload.raw,
+          quality: payload.quality,
+        }
+        telemetryBuffer.current.push(point)
       }
 
-      telemetryBuffer.current.push(point)
       setPendingSyncCount(telemetryBuffer.current.length)
+
+      // Initiate network request dynamically if we hit the high-frequency optimization threshold
+      if (telemetryBuffer.current.length >= BATCH_THRESHOLD && !isSyncingRef.current) {
+        flushBuffer()
+      }
     },
-    [addLog],
+    [addLog, flushBuffer],
   )
 
   return {

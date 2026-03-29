@@ -4,6 +4,7 @@ import { useDebug } from '@/stores/DebugContext'
 
 export interface SensorDataPoint {
   time: string
+  timestamp: string
   jerk: number
   gForceZ: number
   lateralForce: number
@@ -216,13 +217,20 @@ export function useInertialSensors() {
       lastTimeRef.current = now
 
       const date = new Date()
+      // High-precision timestamp for 60Hz temporal sequence integrity
+      const highPrecisionTimestamp = new Date(
+        performance.timeOrigin ? performance.timeOrigin + now : Date.now(),
+      ).toISOString()
+
       dataRef.current.push({
         time: `${date.getMinutes()}:${date.getSeconds().toString().padStart(2, '0')}`,
+        timestamp: highPrecisionTimestamp,
         jerk: Math.min(jerk, 50),
         gForceZ,
         lateralForce,
       })
-      if (dataRef.current.length > 60) dataRef.current.shift()
+      // Keep a slightly larger buffer locally to ensure we don't drop points between 5Hz UI throttle updates
+      if (dataRef.current.length > 120) dataRef.current.shift()
     }
 
     const handleOrientation = (e: DeviceOrientationEvent) => {

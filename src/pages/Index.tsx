@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Activity, Car, Wifi, ShieldCheck, Play } from 'lucide-react'
+import { Activity, Car, Wifi, ShieldCheck, Play, BatteryCharging } from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
+import { Badge } from '@/components/ui/badge'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -53,8 +54,17 @@ export default function Index() {
       <HealthCheckWidget />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Visão Geral Consolidada</h1>
+        <div className="space-y-1">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">Visão Geral Consolidada</h1>
+            <Badge
+              variant="outline"
+              className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5 w-fit"
+            >
+              <BatteryCharging className="w-3.5 h-3.5" />
+              Performance Mode: 60Hz Battery Optimized
+            </Badge>
+          </div>
           <p className="text-muted-foreground">
             Monitoramento global Edge-to-Cloud de dispositivos ativos.
           </p>
