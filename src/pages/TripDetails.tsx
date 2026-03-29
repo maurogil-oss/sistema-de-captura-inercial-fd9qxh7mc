@@ -427,6 +427,44 @@ export default function TripDetails() {
             </Card>
 
             <div className="grid sm:grid-cols-2 gap-6">
+              <Card className="glass-panel overflow-hidden shadow-sm">
+                <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <MapPin className="w-4 h-4 text-primary" /> Análise da Via
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4 grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Buracos Detectados
+                    </span>
+                    <span className="text-3xl font-bold font-mono text-foreground">
+                      {sensors.potholes}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Estado da Pista
+                    </span>
+                    <span
+                      className={cn(
+                        'text-3xl font-bold font-mono',
+                        sensors.roadCondition.percentage > 80
+                          ? 'text-emerald-500'
+                          : sensors.roadCondition.percentage > 40
+                            ? 'text-amber-500'
+                            : 'text-destructive',
+                      )}
+                    >
+                      {Math.round(sensors.roadCondition.percentage)}%
+                    </span>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {sensors.roadCondition.label}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
               <TripExport sessionId={sessionId} />
             </div>
           </div>
@@ -439,7 +477,15 @@ export default function TripDetails() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 flex-1 relative bg-muted/10">
-                <MapMock mode="default" />
+                <MapMock
+                  mode={
+                    sensors.roadEvents.length > 0 || sensors.conditionHistory.length > 1
+                      ? 'potholes'
+                      : 'default'
+                  }
+                  events={sensors.roadEvents}
+                  conditionHistory={sensors.conditionHistory}
+                />
               </CardContent>
             </Card>
           </div>

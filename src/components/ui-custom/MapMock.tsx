@@ -7,15 +7,26 @@ export function MapMock({
   className,
   mode = 'default',
   events = [],
+  conditionHistory = [],
 }: {
   className?: string
   mode?: 'default' | 'heatmap' | 'potholes'
   events?: TripEvent[]
+  conditionHistory?: number[]
 }) {
   const { isSimulating } = useSimulation()
 
   const translatedMode =
-    mode === 'heatmap' ? 'MAPA DE CALOR' : mode === 'potholes' ? 'BURACOS' : 'PADRÃO'
+    mode === 'heatmap' ? 'MAPA DE CALOR' : mode === 'potholes' ? 'BURACOS E VIA' : 'PADRÃO'
+
+  const getConditionColor = (pct: number) => {
+    if (pct > 80) return '#10b981' // emerald-500
+    if (pct > 40) return '#eab308' // yellow-500
+    return '#ef4444' // red-500
+  }
+
+  const hasGradient = conditionHistory && conditionHistory.length > 0
+  const gradientId = `wear-gradient-${Math.random().toString(36).substring(2, 9)}`
 
   return (
     <div
@@ -34,33 +45,54 @@ export function MapMock({
       ></div>
 
       <svg
-        className="absolute inset-0 w-full h-full opacity-30"
+        className="absolute inset-0 w-full h-full opacity-60"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
+        {hasGradient && (
+          <defs>
+            <linearGradient id={gradientId} x1="10%" y1="80%" x2="90%" y2="80%">
+              {conditionHistory.map((pct, idx) => (
+                <stop
+                  key={idx}
+                  offset={`${(idx / (conditionHistory.length > 1 ? conditionHistory.length - 1 : 1)) * 100}%`}
+                  stopColor={getConditionColor(pct)}
+                />
+              ))}
+            </linearGradient>
+          </defs>
+        )}
+
+        {/* Background paths */}
         <path
           d="M0,50 Q25,30 50,50 T100,50"
           fill="none"
           stroke="currentColor"
-          className="text-muted-foreground"
+          className="text-muted-foreground opacity-30"
           strokeWidth="0.5"
         />
         <path
           d="M20,0 L20,100 M80,0 L80,100"
           fill="none"
           stroke="currentColor"
-          className="text-muted-foreground"
+          className="text-muted-foreground opacity-30"
           strokeWidth="0.2"
         />
+
+        {/* The main trajectory path mapped with the condition gradient */}
         <path
           d="M10,80 Q50,20 90,80"
           fill="none"
-          stroke="hsl(var(--primary))"
-          className="opacity-50"
-          strokeWidth="1.5"
-          strokeDasharray="4,4"
+          stroke={
+            hasGradient && mode === 'potholes' ? `url(#${gradientId})` : 'hsl(var(--primary))'
+          }
+          className={cn('transition-all duration-500', !hasGradient && 'opacity-50')}
+          strokeWidth={mode === 'potholes' ? '3' : '1.5'}
+          strokeDasharray={mode === 'potholes' ? 'none' : '4,4'}
         />
-        {mode === 'potholes' && (
+
+        {/* Potholes specific extra path (optional fallback) */}
+        {mode === 'potholes' && !hasGradient && (
           <path
             d="M0,70 Q40,90 100,30"
             fill="none"
@@ -73,9 +105,11 @@ export function MapMock({
       </svg>
 
       {/* Render Event Markers */}
-      {events.slice(-5).map((e, idx) => {
-        const left = 20 + ((idx * 15) % 60)
-        const top = 30 + ((idx * 10) % 40)
+      {events.slice(-10).map((e, idx, arr) => {
+        const t = (idx + 1) / (arr.length + 1)
+        const left = Math.pow(1 - t, 2) * 10 + 2 * (1 - t) * t * 50 + Math.pow(t, 2) * 90
+        const top = Math.pow(1 - t, 2) * 80 + 2 * (1 - t) * t * 20 + Math.pow(t, 2) * 80
+
         return (
           <div
             key={e.id}
@@ -86,7 +120,7 @@ export function MapMock({
             <div className="relative">
               <div
                 className={cn(
-                  'w-3 h-3 rounded-full z-10 relative',
+                  'w-3 h-3 rounded-full z-10 relative border-2 border-[#0B0E14]',
                   e.severity === 'critical' ? 'bg-destructive' : 'bg-amber-500',
                 )}
               />
@@ -97,8 +131,8 @@ export function MapMock({
                 )}
               />
             </div>
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 whitespace-nowrap bg-background/90 text-foreground text-[10px] px-2 py-1 rounded border border-border z-20">
-              {e.type}
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 whitespace-nowrap bg-background/90 text-foreground text-[10px] px-2 py-1 rounded border border-border z-20 shadow-md">
+              {e.type} ({e.severity})
             </span>
           </div>
         )
@@ -127,6 +161,17 @@ export function MapMock({
             </span>
           </div>
         </>
+      )}
+
+      {mode === 'potholes' && hasGradient && (
+        <div className="absolute top-4 left-4 bg-background/80 backdrop-blur px-2 py-1.5 rounded flex gap-2 items-center text-[10px] font-mono border border-border shadow-sm">
+          <span className="text-muted-foreground">VIA:</span>
+          <div className="flex gap-1.5 items-center">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full" title="Smooth" />
+            <div className="w-2 h-2 bg-yellow-500 rounded-full" title="Moderate" />
+            <div className="w-2 h-2 bg-red-500 rounded-full" title="Rough" />
+          </div>
+        </div>
       )}
 
       <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur px-3 py-1.5 rounded text-[10px] font-mono border border-border text-muted-foreground">

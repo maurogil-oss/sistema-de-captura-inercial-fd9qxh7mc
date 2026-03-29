@@ -38,7 +38,15 @@ export function useInertialSensors() {
   const [samplingRate, setSamplingRate] = useState(0)
   const [sensorStatus, setSensorStatus] = useState({ accel: false, gyro: false, mag: false })
 
+  const [roadEvents, setRoadEvents] = useState<TripEvent[]>([])
+  const [roadCondition, setRoadCondition] = useState({
+    percentage: 100,
+    label: 'Smooth' as 'Smooth' | 'Moderate' | 'Rough',
+  })
+  const [conditionHistory, setConditionHistory] = useState<number[]>([100])
+
   const framesRef = useRef(0)
+  const totalFramesRef = useRef(0)
   const lastFpsTimeRef = useRef(performance.now())
 
   const lastAccelRef = useRef<{ x: number; y: number; z: number } | null>(null)
@@ -48,6 +56,14 @@ export function useInertialSensors() {
   const latestFftRef = useRef<FFTFeatures | null>(null)
 
   const statsRef = useRef({ zenScore: 100, potholes: 0 })
+  const roadAnalysisRef = useRef({
+    events: [] as TripEvent[],
+    zBuffer: [] as number[],
+    lastPotholeTime: 0,
+    conditionPercentage: 100,
+    conditionLabel: 'Smooth' as 'Smooth' | 'Moderate' | 'Rough',
+    history: [100] as number[],
+  })
   const eventCountRef = useRef(0)
   const checkTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const rafRef = useRef<number | undefined>(undefined)
@@ -130,13 +146,25 @@ export function useInertialSensors() {
     setFftFeatures(null)
 
     statsRef.current = { zenScore: 100, potholes: 0 }
+    roadAnalysisRef.current = {
+      events: [],
+      zBuffer: [],
+      lastPotholeTime: 0,
+      conditionPercentage: 100,
+      conditionLabel: 'Smooth',
+      history: [100],
+    }
     setZenScore(100)
     setPotholes(0)
+    setRoadEvents([])
+    setRoadCondition({ percentage: 100, label: 'Smooth' })
+    setConditionHistory([100])
 
     lastAccelRef.current = null
     lastTimeRef.current = performance.now()
     eventCountRef.current = 0
     framesRef.current = 0
+    totalFramesRef.current = 0
     lastFpsTimeRef.current = performance.now()
 
     addLog('info', 'Started capture. Awaiting sensor data...', 'Sensor')
@@ -170,6 +198,7 @@ export function useInertialSensors() {
       const now = performance.now()
 
       framesRef.current++
+      totalFramesRef.current++
       if (now - lastFpsTimeRef.current >= 1000) {
         const hz = framesRef.current / ((now - lastFpsTimeRef.current) / 1000)
         setSamplingRate(Math.round(hz))
@@ -200,6 +229,48 @@ export function useInertialSensors() {
         windowBufferRef.current = windowBufferRef.current.slice(FFT_OVERLAP)
       }
 
+      // Road Analysis Logic
+      const currentZBuffer = roadAnalysisRef.current.zBuffer
+      currentZBuffer.push(gForceZ)
+      if (currentZBuffer.length > 120) currentZBuffer.shift()
+
+      // Pothole detection (spike in Z-axis)
+      if (Math.abs(gForceZ) > 2.0) {
+        if (now - roadAnalysisRef.current.lastPotholeTime > 1500) {
+          statsRef.current.potholes += 1
+          roadAnalysisRef.current.lastPotholeTime = now
+          const sev = Math.abs(gForceZ) > 3.5 ? 'critical' : 'high'
+          roadAnalysisRef.current.events.push({
+            id: `pth-${Date.now()}`,
+            type: 'Buraco',
+            timestamp: new Date().toISOString(),
+            severity: sev,
+            details: `Impacto Z: ${gForceZ.toFixed(2)}G`,
+          })
+          addLog('warning', `Pothole detected: ${gForceZ.toFixed(2)}G`, 'Sensor')
+        }
+      }
+
+      // Road condition calculation (variance over last ~2s window)
+      if (totalFramesRef.current % 30 === 0 && currentZBuffer.length > 30) {
+        const mean = currentZBuffer.reduce((a, b) => a + b, 0) / currentZBuffer.length
+        const variance =
+          currentZBuffer.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / currentZBuffer.length
+
+        // Map variance to 0-100% condition (higher variance = lower percentage)
+        const pct = Math.max(0, Math.min(100, 100 - variance * 1000))
+
+        roadAnalysisRef.current.conditionPercentage = pct
+        if (pct > 80) roadAnalysisRef.current.conditionLabel = 'Smooth'
+        else if (pct > 40) roadAnalysisRef.current.conditionLabel = 'Moderate'
+        else roadAnalysisRef.current.conditionLabel = 'Rough'
+
+        if (totalFramesRef.current % 120 === 0) {
+          roadAnalysisRef.current.history.push(pct)
+          if (roadAnalysisRef.current.history.length > 10) roadAnalysisRef.current.history.shift()
+        }
+      }
+
       if (lastAccelRef.current && dt > 0) {
         const daX = (acc.x || 0) - lastAccelRef.current.x
         const daY = (acc.y || 0) - lastAccelRef.current.y
@@ -208,8 +279,6 @@ export function useInertialSensors() {
         jerk = Math.sqrt(daX * daX + daY * daY + daZ * daZ) / dt
 
         if (jerk > 30) statsRef.current.zenScore = Math.max(0, statsRef.current.zenScore - 0.2)
-        if (Math.abs(gForceZ) > 2.0) statsRef.current.potholes += 0.05
-
         lateralForce = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2) / 9.81
       }
 
@@ -217,7 +286,6 @@ export function useInertialSensors() {
       lastTimeRef.current = now
 
       const date = new Date()
-      // High-precision timestamp for 60Hz temporal sequence integrity
       const highPrecisionTimestamp = new Date(
         performance.timeOrigin ? performance.timeOrigin + now : Date.now(),
       ).toISOString()
@@ -229,7 +297,6 @@ export function useInertialSensors() {
         gForceZ,
         lateralForce,
       })
-      // Keep a slightly larger buffer locally to ensure we don't drop points between 5Hz UI throttle updates
       if (dataRef.current.length > 120) dataRef.current.shift()
     }
 
@@ -251,10 +318,16 @@ export function useInertialSensors() {
     let lastUpdate = performance.now()
     const updateUI = (now: number) => {
       if (now - lastUpdate >= 200) {
-        // Update UI at 5Hz
         setData([...dataRef.current])
         setZenScore(statsRef.current.zenScore)
-        setPotholes(Math.floor(statsRef.current.potholes))
+        setPotholes(statsRef.current.potholes)
+        setRoadEvents([...roadAnalysisRef.current.events])
+        setRoadCondition({
+          percentage: roadAnalysisRef.current.conditionPercentage,
+          label: roadAnalysisRef.current.conditionLabel,
+        })
+        setConditionHistory([...roadAnalysisRef.current.history])
+
         if (latestFftRef.current) {
           setFftFeatures(latestFftRef.current)
         }
@@ -286,5 +359,8 @@ export function useInertialSensors() {
     requestSensorPermission,
     samplingRate,
     sensorStatus,
+    roadEvents,
+    roadCondition,
+    conditionHistory,
   }
 }
