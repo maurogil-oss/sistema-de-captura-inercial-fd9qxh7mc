@@ -10,9 +10,18 @@ import TripDetails from './pages/TripDetails'
 import OrbisSDK from './pages/OrbisSDK'
 import NotFound from './pages/NotFound'
 import Diagnostics from './pages/Diagnostics'
+import { useEffect } from 'react'
 import { SimulationProvider } from './stores/SimulationContext'
 import { DebugProvider } from './stores/DebugContext'
 import { HealthProvider } from './stores/HealthContext'
+import { useAnomalyStore } from './stores/useAnomalyStore'
+
+const GlobalSyncInit = () => {
+  useEffect(() => {
+    useAnomalyStore.getState().initializeGlobalSync()
+  }, [])
+  return null
+}
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -20,6 +29,7 @@ const App = () => (
       <DebugProvider>
         <HealthProvider>
           <TooltipProvider>
+            <GlobalSyncInit />
             <Toaster />
             <Sonner />
             <Routes>

@@ -23,6 +23,7 @@ import { TripHeader } from '@/components/TripHeader'
 import { TripExport } from '@/components/TripExport'
 import { DebugConsole } from '@/components/DebugConsole'
 import { cn, generateSessionId } from '@/lib/utils'
+import { useAnomalyStore } from '@/stores/useAnomalyStore'
 
 export default function TripDetails() {
   const { sessionId: paramSessionId } = useParams<{ sessionId: string }>()
@@ -64,10 +65,32 @@ export default function TripDetails() {
     latestDataRef.current = sensors.data
   }, [sensors.fftFeatures, sensors.data])
 
+  const lastPotholesRef = useRef(sensors.potholes)
+  const tRef = useRef(0)
+
   useEffect(() => {
     if (!sensors.isCapturing) return
     const interval = setInterval(() => {
       if (!latestFftRef.current) return
+
+      // Advance simulated trajectory
+      tRef.current = (tRef.current + 0.005) % 1
+      const t = tRef.current
+      const x = Math.pow(1 - t, 2) * 10 + 2 * (1 - t) * t * 50 + Math.pow(t, 2) * 90
+      const y = Math.pow(1 - t, 2) * 80 + 2 * (1 - t) * t * 20 + Math.pow(t, 2) * 80
+
+      const minLat = -23.56,
+        maxLat = -23.54
+      const minLng = -46.64,
+        maxLng = -46.62
+      const currentLat = minLat + (y / 100) * (maxLat - minLat)
+      const currentLng = minLng + (x / 100) * (maxLng - minLng)
+
+      let anomalyScore = 0.1
+      if (sensors.potholes > lastPotholesRef.current) {
+        anomalyScore = 0.9
+        lastPotholesRef.current = sensors.potholes
+      }
 
       sendTelemetry({
         deviceId: sessionId,
@@ -77,7 +100,11 @@ export default function TripDetails() {
         features: latestFftRef.current,
         quality: {
           signalConfidence: latestDataRef.current.length > 0 ? 0.98 : 0.0,
-          anomalyScore: sensors.potholes > 0 ? 0.75 : 0.1,
+          anomalyScore: anomalyScore,
+        },
+        location: {
+          lat: currentLat,
+          lng: currentLng,
         },
       })
     }, 500)
@@ -89,6 +116,20 @@ export default function TripDetails() {
   const isOnline =
     ['Connected', 'Creating Transmission', 'Transmission Active'].includes(syncStatus) ||
     sensors.isCapturing
+
+  const clusters = useAnomalyStore((state) => state.clusters)
+  const confirmedCount = clusters.filter((c) => c.status === 'Confirmed').length
+  const potentialCount = clusters.filter((c) => c.status === 'Potential').length
+  const adjustedConditionPct = Math.max(
+    0,
+    sensors.roadCondition.percentage - confirmedCount * 1.5 - potentialCount * 0.2,
+  )
+  const adjustedLabel =
+    adjustedConditionPct > 80
+      ? 'Excelente'
+      : adjustedConditionPct > 40
+        ? 'Regular'
+        : 'Crítico (Confirmado)'
 
   if (!sessionId) return null
 
@@ -442,25 +483,38 @@ export default function TripDetails() {
                       {sensors.potholes}
                     </span>
                   </div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 relative group">
                     <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                      Estado da Pista
+                      Qualidade Validada
                     </span>
                     <span
                       className={cn(
-                        'text-3xl font-bold font-mono',
-                        sensors.roadCondition.percentage > 80
+                        'text-3xl font-bold font-mono transition-colors',
+                        adjustedConditionPct > 80
                           ? 'text-emerald-500'
-                          : sensors.roadCondition.percentage > 40
+                          : adjustedConditionPct > 40
                             ? 'text-amber-500'
                             : 'text-destructive',
                       )}
                     >
-                      {Math.round(sensors.roadCondition.percentage)}%
+                      {Math.round(adjustedConditionPct)}%
                     </span>
                     <span className="text-xs font-medium text-muted-foreground">
-                      {sensors.roadCondition.label}
+                      {adjustedLabel}
                     </span>
+
+                    <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity bg-popover text-popover-foreground text-[10px] p-2 rounded shadow-lg border border-border w-48 z-10 pointer-events-none">
+                      <p className="font-bold mb-1 border-b border-border pb-1">
+                        Reliability Adjustments
+                      </p>
+                      <p>Local Score: {Math.round(sensors.roadCondition.percentage)}%</p>
+                      <p className="text-red-400 mt-1">
+                        Confirmed Penality: -{Math.round(confirmedCount * 1.5)}%
+                      </p>
+                      <p className="text-yellow-400">
+                        Potential Penality: -{Math.round(potentialCount * 0.2)}%
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

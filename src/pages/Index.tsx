@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Activity, Car, Wifi, ShieldCheck, Play, BatteryCharging } from 'lucide-react'
+import {
+  Activity,
+  Car,
+  Wifi,
+  ShieldCheck,
+  Play,
+  BatteryCharging,
+  CheckCircle2,
+  AlertTriangle,
+  Layers,
+} from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
 import { Badge } from '@/components/ui/badge'
 import { MapMock } from '@/components/ui-custom/MapMock'
@@ -9,6 +19,70 @@ import { Button } from '@/components/ui/button'
 import { DevicePairingCard } from '@/components/DevicePairingCard'
 import { HealthCheckWidget } from '@/components/HealthCheckWidget'
 import { pb } from '@/lib/skip-cloud'
+import { useAnomalyStore } from '@/stores/useAnomalyStore'
+
+function ReliabilityDashboard() {
+  const clusters = useAnomalyStore((state) => state.clusters)
+  const confirmed = clusters.filter((c) => c.status === 'Confirmed').length
+  const potential = clusters.filter((c) => c.status === 'Potential').length
+  const totalDetections = clusters.reduce((acc, c) => acc + c.detections, 0)
+
+  const confidenceLevel =
+    totalDetections === 0 ? 0 : Math.round((confirmed / (confirmed + potential)) * 100) || 0
+
+  return (
+    <Card className="glass-panel border-primary/20 bg-gradient-to-br from-background to-primary/5">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-primary" />
+          Data Reliability & Validation Dashboard
+        </CardTitle>
+        <CardDescription>
+          Multi-pass spatial clustering and anomaly verification status.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2">
+          <div className="flex flex-col gap-1 p-3 rounded-lg bg-background/50 border border-border/50">
+            <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+              <Layers className="w-4 h-4" /> Total Clusters
+            </span>
+            <span className="text-2xl font-bold">{clusters.length}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+            <span className="text-sm text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" /> Potential
+            </span>
+            <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+              {potential}
+            </span>
+            <span className="text-[10px] text-yellow-600/80">{'< 10 detections'}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+            <span className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" /> Confirmed
+            </span>
+            <span className="text-2xl font-bold text-red-600 dark:text-red-400">{confirmed}</span>
+            <span className="text-[10px] text-red-600/80">{'>= 10 detections'}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <span className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <Activity className="w-4 h-4" /> Confidence Level
+            </span>
+            <div className="flex items-end gap-2">
+              <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                {confidenceLevel}%
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-emerald-500/20 rounded-full mt-1 overflow-hidden">
+              <div className="h-full bg-emerald-500" style={{ width: `${confidenceLevel}%` }} />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function Index() {
   const [currentSessionId, setCurrentSessionId] = useState<string>('')
@@ -109,6 +183,8 @@ export default function Index() {
           description="Agnóstico a rede"
         />
       </div>
+
+      <ReliabilityDashboard />
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="col-span-1 glass-panel flex flex-col">

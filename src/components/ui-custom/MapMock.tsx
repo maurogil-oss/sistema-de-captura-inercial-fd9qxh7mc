@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils'
 import { useSimulation } from '@/stores/SimulationContext'
 import { CloudLightning, MapPin } from 'lucide-react'
 import { TripEvent } from '@/hooks/useInertialSensors'
+import { useAnomalyStore } from '@/stores/useAnomalyStore'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 
 export function MapMock({
   className,
@@ -15,6 +17,8 @@ export function MapMock({
   conditionHistory?: number[]
 }) {
   const { isSimulating } = useSimulation()
+
+  const clusters = useAnomalyStore((state) => state.clusters)
 
   const translatedMode =
     mode === 'heatmap' ? 'MAPA DE CALOR' : mode === 'potholes' ? 'BURACOS E VIA' : 'PADRÃO'
@@ -104,7 +108,65 @@ export function MapMock({
         )}
       </svg>
 
-      {/* Render Event Markers */}
+      {/* Render Global Anomaly Clusters */}
+      {clusters.map((cluster) => {
+        const minLat = -23.56
+        const maxLat = -23.54
+        const minLng = -46.64
+        const maxLng = -46.62
+
+        const top = ((cluster.lat - minLat) / (maxLat - minLat)) * 100
+        const left = ((cluster.lng - minLng) / (maxLng - minLng)) * 100
+
+        if (top < 0 || top > 100 || left < 0 || left > 100) return null
+
+        return (
+          <TooltipProvider key={cluster.id} delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-20 hover:scale-125 transition-transform"
+                  style={{ left: `${left}%`, top: `${top}%` }}
+                >
+                  {cluster.status === 'Confirmed' ? (
+                    <div className="relative">
+                      <div className="w-4 h-4 rounded-full z-10 relative border-2 border-[#0B0E14] bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)] flex items-center justify-center">
+                        <div className="w-1 h-1 bg-white rounded-full" />
+                      </div>
+                      <div className="absolute inset-0 rounded-full animate-ping opacity-50 bg-red-600" />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="w-3 h-3 rounded-full z-10 relative border-2 border-[#0B0E14] bg-yellow-400 opacity-90" />
+                    </div>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg z-50">
+                <p className="font-bold text-sm mb-0.5 flex items-center gap-1.5">
+                  {cluster.status === 'Confirmed' ? (
+                    <span className="text-red-500 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" /> Confirmed Anomaly
+                    </span>
+                  ) : (
+                    <span className="text-yellow-500 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" /> Potential Anomaly
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Detected {cluster.detections}/10 times for confirmation
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
+                  First: {new Date(cluster.firstDetected).toLocaleDateString()}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      })}
+
+      {/* Render Local Event Markers */}
       {events.slice(-10).map((e, idx, arr) => {
         const t = (idx + 1) / (arr.length + 1)
         const left = Math.pow(1 - t, 2) * 10 + 2 * (1 - t) * t * 50 + Math.pow(t, 2) * 90
@@ -113,27 +175,10 @@ export function MapMock({
         return (
           <div
             key={e.id}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer"
+            className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none"
             style={{ left: `${left}%`, top: `${top}%` }}
-            title={`${e.type} - ${e.timestamp}`}
           >
-            <div className="relative">
-              <div
-                className={cn(
-                  'w-3 h-3 rounded-full z-10 relative border-2 border-[#0B0E14]',
-                  e.severity === 'critical' ? 'bg-destructive' : 'bg-amber-500',
-                )}
-              />
-              <div
-                className={cn(
-                  'absolute inset-0 rounded-full animate-ping opacity-75',
-                  e.severity === 'critical' ? 'bg-destructive' : 'bg-amber-500',
-                )}
-              />
-            </div>
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 whitespace-nowrap bg-background/90 text-foreground text-[10px] px-2 py-1 rounded border border-border z-20 shadow-md">
-              {e.type} ({e.severity})
-            </span>
+            <div className="w-1.5 h-1.5 bg-white/50 rounded-full shadow-[0_0_5px_rgba(255,255,255,0.5)]" />
           </div>
         )
       })}

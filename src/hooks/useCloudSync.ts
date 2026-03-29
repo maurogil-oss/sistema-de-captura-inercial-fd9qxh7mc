@@ -37,6 +37,10 @@ export interface TelemetryPoint {
     signalConfidence: number
     anomalyScore: number
   }
+  location?: {
+    lat: number
+    lng: number
+  }
 }
 
 export interface TelemetryPayload {
@@ -55,6 +59,10 @@ export interface TelemetryPayload {
     signalConfidence: number
     anomalyScore: number
   }
+  location?: {
+    lat: number
+    lng: number
+  }
   points?: TelemetryPoint[]
   protocolVersion?: string
 }
@@ -68,6 +76,12 @@ const payloadSchema = z.object({
   features: z.any().optional(),
   raw: z.any().optional(),
   quality: z.any().optional(),
+  location: z
+    .object({
+      lat: z.number(),
+      lng: z.number(),
+    })
+    .optional(),
   points: z.array(z.any()).optional(),
   protocolVersion: z.string().optional(),
 })
@@ -230,6 +244,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
           timestamp: p.timestamp,
           features: p.features,
           quality: p.quality,
+          location: p.location || payload.location,
         }))
         setRemoteData((prev) => [...prev, ...newPoints].slice(-120))
       } else if (payload.features) {
@@ -466,6 +481,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
           features: payload.features,
           raw: payload.raw,
           quality: payload.quality,
+          location: payload.location,
         }
         telemetryBuffer.current.push(point)
       }
