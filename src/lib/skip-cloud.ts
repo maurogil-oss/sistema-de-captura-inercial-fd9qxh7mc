@@ -133,6 +133,11 @@ class RealtimeService {
     }
   }
 
+  reconnect() {
+    this.reconnectAttempts = 0
+    this.connect()
+  }
+
   private connect() {
     if (this.sse) {
       this.sse.close()
@@ -236,6 +241,10 @@ export class PocketBase {
 
   notifyConnectionChange() {
     this.connectionListeners.forEach((cb) => cb(this.connectionStatus))
+  }
+
+  reconnect() {
+    this.realtime.reconnect()
   }
 }
 

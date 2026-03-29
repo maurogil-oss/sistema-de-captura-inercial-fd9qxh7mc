@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { extractFeatures, FFTFeatures } from '@/lib/fft'
+import { useDebug } from '@/stores/DebugContext'
 
 export interface SensorDataPoint {
   time: string
@@ -22,6 +23,7 @@ const FFT_WINDOW_SIZE = 256
 const FFT_OVERLAP = 128
 
 export function useInertialSensors() {
+  const { addLog } = useDebug()
   const [isCapturing, setIsCapturing] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +33,12 @@ export function useInertialSensors() {
   const [zenScore, setZenScore] = useState(100)
   const [potholes, setPotholes] = useState(0)
   const [permissionState, setPermissionState] = useState<PermissionState>('idle')
+
+  const [samplingRate, setSamplingRate] = useState(0)
+  const [sensorStatus, setSensorStatus] = useState({ accel: false, gyro: false, mag: false })
+
+  const framesRef = useRef(0)
+  const lastFpsTimeRef = useRef(performance.now())
 
   const lastAccelRef = useRef<{ x: number; y: number; z: number } | null>(null)
   const lastTimeRef = useRef<number>(0)
@@ -86,24 +94,28 @@ export function useInertialSensors() {
         const state = await (DeviceMotionEvent as any).requestPermission()
         if (state === 'granted') {
           setPermissionState('granted')
+          addLog('info', 'Sensor permissions granted by user', 'Mobile')
           return true
         } else {
           setPermissionState('denied')
           setError('Acesso negado. Habilite nas configurações.')
+          addLog('error', 'Sensor permissions denied by user', 'Mobile')
           setIsWaiting(false)
           return false
         }
       } else {
         setPermissionState('granted')
+        addLog('info', 'Sensor permissions granted (implicit)', 'Mobile')
         return true
       }
     } catch (e) {
       setPermissionState('denied')
       setError('Acesso negado. Habilite nas configurações.')
+      addLog('error', 'Failed to request sensor permissions', 'Mobile')
       setIsWaiting(false)
       return false
     }
-  }, [])
+  }, [addLog])
 
   const startCapture = async () => {
     const granted = await requestSensorPermission()
@@ -123,12 +135,17 @@ export function useInertialSensors() {
     lastAccelRef.current = null
     lastTimeRef.current = performance.now()
     eventCountRef.current = 0
+    framesRef.current = 0
+    lastFpsTimeRef.current = performance.now()
+
+    addLog('info', 'Started capture. Awaiting sensor data...', 'Sensor')
 
     checkTimeoutRef.current = setTimeout(() => {
       if (eventCountRef.current === 0) {
         setError('Sensores não estão respondendo (Fallback ativado se houver dados parciais).')
         setPermissionState('unsupported')
         setIsCapturing(false)
+        addLog('error', 'Timeout waiting for sensors. Capture aborted.', 'Sensor')
       }
     }, 2000)
   }
@@ -141,7 +158,31 @@ export function useInertialSensors() {
       const acc = event.acceleration || event.accelerationIncludingGravity
       if (!acc || acc.x === null) return
 
+      setSensorStatus((s) => {
+        if (!s.accel || !s.gyro) {
+          addLog('info', 'Accelerometer and Gyroscope responding', 'Sensor')
+          return { ...s, accel: true, gyro: true }
+        }
+        return s
+      })
+
       const now = performance.now()
+
+      framesRef.current++
+      if (now - lastFpsTimeRef.current >= 1000) {
+        const hz = framesRef.current / ((now - lastFpsTimeRef.current) / 1000)
+        setSamplingRate(Math.round(hz))
+        if (hz < 30) {
+          addLog(
+            'warning',
+            `Low sampling rate detected: ${Math.round(hz)} Hz (Expected ~60Hz)`,
+            'Sensor',
+          )
+        }
+        framesRef.current = 0
+        lastFpsTimeRef.current = now
+      }
+
       const dt = (now - lastTimeRef.current) / 1000
 
       let jerk = 0
@@ -184,7 +225,20 @@ export function useInertialSensors() {
       if (dataRef.current.length > 60) dataRef.current.shift()
     }
 
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.alpha !== null) {
+        setSensorStatus((s) => {
+          if (!s.mag) {
+            addLog('info', 'Magnetometer responding', 'Sensor')
+            return { ...s, mag: true }
+          }
+          return s
+        })
+      }
+    }
+
     window.addEventListener('devicemotion', handleMotion, true)
+    window.addEventListener('deviceorientation', handleOrientation, true)
 
     let lastUpdate = performance.now()
     const updateUI = (now: number) => {
@@ -205,9 +259,10 @@ export function useInertialSensors() {
 
     return () => {
       window.removeEventListener('devicemotion', handleMotion, true)
+      window.removeEventListener('deviceorientation', handleOrientation, true)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [isCapturing])
+  }, [isCapturing, addLog])
 
   return {
     isCapturing,
@@ -221,5 +276,7 @@ export function useInertialSensors() {
     potholes,
     permissionState,
     requestSensorPermission,
+    samplingRate,
+    sensorStatus,
   }
 }

@@ -1,6 +1,7 @@
-import { Bell, Search, Play, Square } from 'lucide-react'
+import { Bell, Search, Play, Square, Stethoscope } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Link } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useSimulation } from '@/stores/SimulationContext'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -33,6 +34,12 @@ export function Header() {
         >
           {isSimulating ? <Square className="w-3 h-3 mr-2" /> : <Play className="w-3 h-3 mr-2" />}
           {isSimulating ? 'PARAR FLUXO L0' : 'SIMULAR FLUXO L0'}
+        </Button>
+
+        <Button variant="ghost" size="icon" asChild title="Diagnostics">
+          <Link to="/diagnostics">
+            <Stethoscope className="h-5 w-5" />
+          </Link>
         </Button>
 
         <Button variant="ghost" size="icon" className="relative">

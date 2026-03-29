@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { pb, ConnectionStatus } from '@/lib/skip-cloud'
 import { FFTFeatures } from '@/lib/fft'
+import { useDebug } from '@/stores/DebugContext'
 
 export type SyncStatus =
   | 'Offline'
@@ -19,14 +20,21 @@ export interface TelemetryPayload {
     signalConfidence: number
     anomalyScore: number
   }
+  protocolVersion?: string
 }
 
 export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigger: number = 0) {
+  const { addLog } = useDebug()
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
   const [remoteData, setRemoteData] = useState<TelemetryPayload[]>([])
   const [mobileConnected, setMobileConnected] = useState(false)
 
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [latency, setLatency] = useState(0)
+  const [timestampDrift, setTimestampDrift] = useState(0)
+
   const isCapturingRef = useRef(isCapturing)
+  const offlineQueue = useRef<TelemetryPayload[]>([])
   const mobileConnectedRef = useRef(mobileConnected)
 
   useEffect(() => {
@@ -83,11 +91,16 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
 
     pb.onConnectionChange((status: ConnectionStatus) => {
       if (!isMounted) return
-      if (status === 'error') setSyncStatus('Offline')
+      if (status === 'error') {
+        setSyncStatus('Offline')
+        addLog('error', 'Connection lost to Skip Cloud', 'Network')
+      }
       if (status === 'reconnecting') setSyncStatus('Reconnecting')
       if (status === 'connecting') setSyncStatus('Conectando...')
-      if (status === 'connected')
+      if (status === 'connected') {
         setSyncStatus(mobileConnectedRef.current ? 'Connected' : 'Aguardando dispositivo móvel')
+        addLog('info', 'Connected to Skip Cloud', 'Network')
+      }
     })
 
     // Subscribe to real-time events
@@ -98,31 +111,107 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
       setMobileConnected(true)
       setSyncStatus('Connected')
 
+      if (payload.protocolVersion && payload.protocolVersion !== '1.0.0') {
+        addLog(
+          'warning',
+          `Protocol version mismatch: Expected 1.0.0, got ${payload.protocolVersion}`,
+          'Protocol',
+        )
+      }
+
+      if (payload.timestamp) {
+        const drift = Math.abs(Date.now() - new Date(payload.timestamp).getTime())
+        setTimestampDrift(drift)
+        if (drift > 500) {
+          addLog('warning', `High timestamp drift detected: ${drift}ms (> 500ms)`, 'Sync')
+        }
+      }
+
       if (payload.features) {
+        const { fftPeak, fftEnergy } = payload.features
+        if (fftPeak == null || isNaN(fftPeak) || fftEnergy == null || isNaN(fftEnergy)) {
+          addLog(
+            'error',
+            'Received invalid features (null/NaN). Dropping payload.',
+            'Data Validation',
+          )
+          return
+        }
         setRemoteData((prev) => [...prev, payload].slice(-60))
       }
     })
 
+    const latencyInterval = setInterval(async () => {
+      const start = Date.now()
+      try {
+        await pb.collection('telemetry').getList(1, 1)
+        const ms = Date.now() - start
+        setLatency(ms)
+        if (ms > 1000) {
+          addLog('warning', `High API latency: ${ms}ms`, 'Network')
+        }
+      } catch (err) {
+        setLatency(-1)
+        addLog('error', 'API health check failed', 'Network')
+      }
+    }, 5000)
+
     return () => {
       isMounted = false
+      clearInterval(latencyInterval)
       pb.collection('telemetry').unsubscribe(`sessionId = '${sessionId}'`)
     }
-  }, [sessionId, retryTrigger])
+  }, [sessionId, retryTrigger, addLog])
 
-  const sendPayload = useCallback(async (payload: TelemetryPayload) => {
-    if (!isCapturingRef.current) return
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setSyncStatus('Offline')
-      return
-    }
+  const sendPayload = useCallback(
+    async (payload: TelemetryPayload) => {
+      if (!isCapturingRef.current) return
 
-    try {
-      await pb.collection('telemetry').create(payload)
-      if (navigator.onLine) setSyncStatus('Connected')
-    } catch (err) {
-      setSyncStatus('Offline')
-    }
-  }, [])
+      payload.protocolVersion = '1.0.0'
 
-  return { syncStatus, sendPayload, remoteData, mobileConnected }
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        offlineQueue.current.push(payload)
+        setPendingSyncCount(offlineQueue.current.length)
+        setSyncStatus('Offline')
+        addLog('warning', 'Device offline. Payload queued.', 'Network')
+        return
+      }
+
+      try {
+        if (offlineQueue.current.length > 0) {
+          addLog('info', `Flushing ${offlineQueue.current.length} queued payloads...`, 'Network')
+          for (const p of offlineQueue.current) {
+            await pb.collection('telemetry').create(p)
+          }
+          offlineQueue.current = []
+          setPendingSyncCount(0)
+        }
+
+        await pb.collection('telemetry').create(payload)
+        if (navigator.onLine) setSyncStatus('Connected')
+      } catch (err) {
+        offlineQueue.current.push(payload)
+        setPendingSyncCount(offlineQueue.current.length)
+        setSyncStatus('Offline')
+        addLog('error', 'Failed to send payload. Queued.', 'Network')
+      }
+    },
+    [addLog],
+  )
+
+  const forceReconnect = useCallback(() => {
+    addLog('info', 'Forcing reconnection to Skip Cloud...', 'Network')
+    pb.reconnect()
+  }, [addLog])
+
+  return {
+    syncStatus,
+    sendPayload,
+    remoteData,
+    mobileConnected,
+    pendingSyncCount,
+    latency,
+    timestampDrift,
+    forceReconnect,
+  }
 }

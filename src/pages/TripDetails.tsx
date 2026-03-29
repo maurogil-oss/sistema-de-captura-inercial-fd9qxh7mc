@@ -9,6 +9,7 @@ import { useInertialSensors } from '@/hooks/useInertialSensors'
 import { useCloudSync } from '@/hooks/useCloudSync'
 import { TripHeader } from '@/components/TripHeader'
 import { TripExport } from '@/components/TripExport'
+import { DebugConsole } from '@/components/DebugConsole'
 import { cn, generateSessionId } from '@/lib/utils'
 
 export default function TripDetails() {
@@ -30,11 +31,15 @@ export default function TripDetails() {
   const handleRetry = useCallback(() => setRetryTrigger((prev) => prev + 1), [])
 
   const sensors = useInertialSensors()
-  const { syncStatus, sendPayload, remoteData } = useCloudSync(
-    sessionId,
-    sensors.isCapturing,
-    retryTrigger,
-  )
+  const {
+    syncStatus,
+    sendPayload,
+    remoteData,
+    pendingSyncCount,
+    latency,
+    timestampDrift,
+    forceReconnect,
+  } = useCloudSync(sessionId, sensors.isCapturing, retryTrigger)
 
   const latestFftRef = useRef(sensors.fftFeatures)
   const latestDataRef = useRef(sensors.data)
@@ -188,6 +193,15 @@ export default function TripDetails() {
           </div>
         </div>
       )}
+
+      <DebugConsole
+        latency={latency}
+        drift={timestampDrift}
+        samplingRate={sensors.samplingRate}
+        sensorStatus={sensors.sensorStatus}
+        pendingSyncCount={pendingSyncCount}
+        forceReconnect={forceReconnect}
+      />
     </div>
   )
 }
