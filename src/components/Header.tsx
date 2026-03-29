@@ -1,14 +1,17 @@
-import { Bell, Search, Play, Square, Stethoscope } from 'lucide-react'
+import { Bell, Search, Play, Square, Stethoscope, Wifi, WifiOff, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Link } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useSimulation } from '@/stores/SimulationContext'
+import { useHealth } from '@/stores/HealthContext'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 export function Header() {
   const { isSimulating, toggleSimulation } = useSimulation()
+  const { status: healthStatus } = useHealth()
 
   return (
     <header className="sticky top-0 z-40 w-full flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur px-6">
@@ -35,6 +38,39 @@ export function Header() {
           {isSimulating ? <Square className="w-3 h-3 mr-2" /> : <Play className="w-3 h-3 mr-2" />}
           {isSimulating ? 'PARAR FLUXO L0' : 'SIMULAR FLUXO L0'}
         </Button>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border cursor-help',
+                healthStatus === 'healthy'
+                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                  : healthStatus === 'checking'
+                    ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                    : 'bg-destructive/10 text-destructive border-destructive/20',
+              )}
+            >
+              {healthStatus === 'checking' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : healthStatus === 'healthy' ? (
+                <Wifi className="w-3.5 h-3.5" />
+              ) : (
+                <WifiOff className="w-3.5 h-3.5" />
+              )}
+              <span className="hidden md:inline">
+                {healthStatus === 'healthy'
+                  ? 'API Online'
+                  : healthStatus === 'checking'
+                    ? 'Checking...'
+                    : 'API Offline'}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Backend Connectivity Status</p>
+          </TooltipContent>
+        </Tooltip>
 
         <Button variant="ghost" size="icon" asChild title="Diagnostics">
           <Link to="/diagnostics">

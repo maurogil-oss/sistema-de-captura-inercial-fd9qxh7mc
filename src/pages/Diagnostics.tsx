@@ -1,13 +1,21 @@
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
 } from '@/components/ui/accordion'
-import { ShieldAlert, Activity } from 'lucide-react'
+import { ShieldAlert, Activity, Server, Globe, RefreshCw, Loader2, AlertCircle } from 'lucide-react'
+import { useHealth } from '@/stores/HealthContext'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Badge } from '@/components/ui/badge'
 
 export default function Diagnostics() {
+  const { status, config, details, checkHealth, updateConfig } = useHealth()
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       <div>
@@ -16,6 +24,143 @@ export default function Diagnostics() {
           Decision Tree and Cause x Impact Matrix for Telemetry Pipeline.
         </p>
       </div>
+
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="w-5 h-5" /> API Health Diagnostics Panel
+          </CardTitle>
+          <CardDescription>
+            Verify edge-to-cloud connectivity and debug networking issues.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm border-b pb-2">Connection Configuration</h4>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Backend Base URL</Label>
+                    <Input
+                      value={config.baseUrl}
+                      onChange={(e) => updateConfig({ baseUrl: e.target.value })}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div className="space-y-3 pt-2">
+                    <Label>Health Check Path</Label>
+                    <RadioGroup
+                      value={config.path}
+                      onValueChange={(val) => updateConfig({ path: val })}
+                      className="flex gap-6 p-3 bg-muted/30 rounded-md border border-border/50"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="/health" id="diag-r1" />
+                        <Label htmlFor="diag-r1" className="font-mono text-xs">
+                          /health
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="/api/health" id="diag-r2" />
+                        <Label htmlFor="diag-r2" className="font-mono text-xs">
+                          /api/health
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => checkHealth()}
+                  disabled={status === 'checking'}
+                  className="w-full sm:w-auto mt-2"
+                >
+                  {status === 'checking' ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  Test Connection
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-semibold text-sm border-b pb-2">Last Check Details</h4>
+              {status === 'idle' ? (
+                <div className="text-muted-foreground text-sm flex items-center gap-2 h-20">
+                  <Activity className="w-4 h-4" /> No health check executed yet.
+                </div>
+              ) : (
+                <div className="space-y-4 text-sm bg-muted/20 p-4 rounded-lg border">
+                  <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                    <span className="font-semibold text-muted-foreground flex items-center gap-2">
+                      <Globe className="w-4 h-4" /> Target URL
+                    </span>
+                    <span className="font-mono text-xs break-all text-right max-w-[200px] sm:max-w-none">
+                      {details?.url}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                    <span className="font-semibold text-muted-foreground">HTTP Method</span>
+                    <Badge variant="outline" className="font-mono">
+                      {details?.method}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                    <span className="font-semibold text-muted-foreground">Status Code</span>
+                    <Badge
+                      variant={details?.rawStatus === 200 ? 'default' : 'destructive'}
+                      className="font-mono"
+                    >
+                      {details?.rawStatus || 'N/A'} {details?.rawStatus === 200 ? 'OK' : ''}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-muted-foreground">Result Message</span>
+                    <span
+                      className={
+                        details?.rawStatus === 200
+                          ? 'text-emerald-500 font-medium'
+                          : 'text-destructive font-medium'
+                      }
+                    >
+                      {details?.message}
+                    </span>
+                  </div>
+
+                  {status === 'unhealthy' && (
+                    <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md text-xs space-y-2">
+                      <strong className="flex items-center gap-1 text-destructive">
+                        <AlertCircle className="w-3.5 h-3.5" /> Probable Causes:
+                      </strong>
+                      <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                        {details?.errorType === 'Timeout Error' && (
+                          <li>Request Timeout: Server took &gt; {config.timeoutMs}ms.</li>
+                        )}
+                        {(details?.errorType === 'Network / CORS / TLS' ||
+                          details?.message?.includes('fetch')) && (
+                          <>
+                            <li>Possible CORS blockage: Pre-flight failed.</li>
+                            <li>Potential TLS/SSL mismatch: Certificate invalid or self-signed.</li>
+                            <li>
+                              Network unreachable: Your edge device has no internet route to
+                              backend.
+                            </li>
+                          </>
+                        )}
+                        {details?.rawStatus === 404 && (
+                          <li>Endpoint Not Found: '{config.path}' does not exist.</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card>

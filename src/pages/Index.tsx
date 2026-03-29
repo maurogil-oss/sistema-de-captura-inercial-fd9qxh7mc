@@ -6,6 +6,7 @@ import { MapMock } from '@/components/ui-custom/MapMock'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { DevicePairingCard } from '@/components/DevicePairingCard'
+import { HealthCheckWidget } from '@/components/HealthCheckWidget'
 import { pb } from '@/lib/skip-cloud'
 
 export default function Index() {
@@ -43,6 +44,8 @@ export default function Index() {
 
   return (
     <div className="space-y-6">
+      <HealthCheckWidget />
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Visão Geral Consolidada</h1>

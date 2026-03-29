@@ -317,6 +317,42 @@ export class PocketBase {
   reconnect() {
     this.realtime.reconnect()
   }
+
+  async initConnection(healthCheckFn?: () => Promise<void>) {
+    this.connectionStatus = 'connecting'
+    this.notifyConnectionChange()
+    if (healthCheckFn) {
+      try {
+        await healthCheckFn()
+      } catch (e) {
+        this.connectionStatus = 'error'
+        this.notifyConnectionChange(new SkipCloudError('Health check failed', 0, 'network'))
+        return false
+      }
+    }
+    this.connectionStatus = 'connected'
+    this.notifyConnectionChange()
+    return true
+  }
+
+  async waitForConnected(timeoutMs = 10000): Promise<boolean> {
+    if (this.connectionStatus === 'connected') return true
+
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(false), timeoutMs)
+      const unsubscribe = this.onConnectionChange((status) => {
+        if (status === 'connected') {
+          clearTimeout(timeout)
+          unsubscribe()
+          resolve(true)
+        } else if (status === 'error') {
+          clearTimeout(timeout)
+          unsubscribe()
+          resolve(false)
+        }
+      })
+    })
+  }
 }
 
 export const pb = new PocketBase(PB_URL)
