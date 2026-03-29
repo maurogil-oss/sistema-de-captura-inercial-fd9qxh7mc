@@ -45,7 +45,7 @@ export default function TripDetails() {
   const {
     syncStatus,
     syncErrorType,
-    sendPayload,
+    sendTelemetry,
     remoteData,
     pendingSyncCount,
     latency,
@@ -66,7 +66,7 @@ export default function TripDetails() {
     const interval = setInterval(() => {
       if (!latestFftRef.current) return
 
-      sendPayload({
+      sendTelemetry({
         deviceId: sessionId,
         sessionId: sessionId,
         timestamp: new Date().toISOString(),
@@ -79,11 +79,13 @@ export default function TripDetails() {
       })
     }, 1000)
     return () => clearInterval(interval)
-  }, [sensors.isCapturing, sendPayload, sessionId, sensors.potholes])
+  }, [sensors.isCapturing, sendTelemetry, sessionId, sensors.potholes])
 
   const isMonitorDevice = sensors.permissionState === 'unsupported'
   const hasData = sensors.isCapturing ? !!sensors.fftFeatures : remoteData.length > 0
-  const isOnline = syncStatus === 'Connected' || sensors.isCapturing
+  const isOnline =
+    ['Connected', 'Creating Transmission', 'Transmission Active'].includes(syncStatus) ||
+    sensors.isCapturing
 
   if (!sessionId) return null
 
@@ -194,24 +196,24 @@ export default function TripDetails() {
         </Alert>
       )}
 
-      {(syncStatus === 'Offline' || syncStatus === 'Reconnecting') &&
+      {(syncStatus === 'Offline' || syncStatus === 'Retrying') &&
         !sensors.isCapturing &&
         isMonitorDevice &&
         syncErrorType === 'none' && (
           <Alert
-            variant={syncStatus === 'Reconnecting' ? 'default' : 'destructive'}
+            variant={syncStatus === 'Retrying' ? 'default' : 'destructive'}
             className={cn(
               'animate-in fade-in',
-              syncStatus === 'Reconnecting' ? 'bg-amber-500/10' : 'bg-destructive/10',
+              syncStatus === 'Retrying' ? 'bg-amber-500/10' : 'bg-destructive/10',
             )}
           >
-            {syncStatus === 'Reconnecting' ? (
+            {syncStatus === 'Retrying' ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
             ) : (
               <CloudOff className="h-4 w-4" />
             )}
             <AlertTitle>
-              {syncStatus === 'Reconnecting' ? 'Reconectando...' : 'Conexão Perdida'}
+              {syncStatus === 'Retrying' ? 'Reconectando...' : 'Conexão Perdida'}
             </AlertTitle>
             <AlertDescription className="mt-2">
               <p>Falha ao sincronizar com a Skip Cloud.</p>
@@ -261,6 +263,107 @@ export default function TripDetails() {
             <p className="text-muted-foreground font-medium max-w-sm mx-auto">
               Processando blocos de 256 amostras (FFT) e enviando payload estruturado em tempo real.
             </p>
+
+            <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-3 text-sm font-medium bg-background/50 p-4 rounded-xl border border-border/50 backdrop-blur-sm">
+              <div
+                className={cn(
+                  'flex items-center gap-2 transition-colors',
+                  syncStatus === 'Connecting'
+                    ? 'text-primary animate-pulse'
+                    : syncStatus === 'Connected' ||
+                        syncStatus === 'Creating Transmission' ||
+                        syncStatus === 'Transmission Active'
+                      ? 'text-emerald-500'
+                      : 'text-muted-foreground',
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-3 h-3 rounded-full shadow-sm',
+                    syncStatus === 'Connecting'
+                      ? 'bg-primary'
+                      : syncStatus === 'Connected' ||
+                          syncStatus === 'Creating Transmission' ||
+                          syncStatus === 'Transmission Active'
+                        ? 'bg-emerald-500'
+                        : 'bg-muted',
+                  )}
+                />
+                Connecting
+              </div>
+              <div className="hidden md:block w-8 h-px bg-border" />
+              <div
+                className={cn(
+                  'flex items-center gap-2 transition-colors',
+                  syncStatus === 'Connected'
+                    ? 'text-primary animate-pulse'
+                    : syncStatus === 'Creating Transmission' || syncStatus === 'Transmission Active'
+                      ? 'text-emerald-500'
+                      : 'text-muted-foreground',
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-3 h-3 rounded-full shadow-sm',
+                    syncStatus === 'Connected'
+                      ? 'bg-primary'
+                      : syncStatus === 'Creating Transmission' ||
+                          syncStatus === 'Transmission Active'
+                        ? 'bg-emerald-500'
+                        : 'bg-muted',
+                  )}
+                />
+                Connected
+              </div>
+              <div className="hidden md:block w-8 h-px bg-border" />
+              <div
+                className={cn(
+                  'flex items-center gap-2 transition-colors',
+                  syncStatus === 'Creating Transmission'
+                    ? 'text-primary animate-pulse'
+                    : syncStatus === 'Transmission Active'
+                      ? 'text-emerald-500'
+                      : 'text-muted-foreground',
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-3 h-3 rounded-full shadow-sm',
+                    syncStatus === 'Creating Transmission'
+                      ? 'bg-primary'
+                      : syncStatus === 'Transmission Active'
+                        ? 'bg-emerald-500'
+                        : 'bg-muted',
+                  )}
+                />
+                Creating Transmission
+              </div>
+              <div className="hidden md:block w-8 h-px bg-border" />
+              <div
+                className={cn(
+                  'flex items-center gap-2 transition-colors',
+                  syncStatus === 'Transmission Active'
+                    ? 'text-emerald-500 font-bold'
+                    : 'text-muted-foreground',
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-3 h-3 rounded-full shadow-sm',
+                    syncStatus === 'Transmission Active'
+                      ? 'bg-emerald-500 animate-pulse'
+                      : 'bg-muted',
+                  )}
+                />
+                Transmission Active
+              </div>
+            </div>
+
+            {syncStatus === 'Retrying' && (
+              <div className="text-amber-500 text-sm font-bold flex items-center justify-center gap-2 mt-4 animate-pulse">
+                <RefreshCw className="w-4 h-4 animate-spin" /> Retrying Connection...
+              </div>
+            )}
           </div>
         </div>
       ) : (

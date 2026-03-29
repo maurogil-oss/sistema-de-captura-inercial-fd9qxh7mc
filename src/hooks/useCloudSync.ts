@@ -6,9 +6,11 @@ import { useDebug } from '@/stores/DebugContext'
 
 export type SyncStatus =
   | 'Offline'
-  | 'Conectando...'
+  | 'Connecting'
   | 'Connected'
-  | 'Reconnecting'
+  | 'Creating Transmission'
+  | 'Transmission Active'
+  | 'Retrying'
   | 'Aguardando dispositivo móvel'
 
 export type SyncErrorType =
@@ -25,6 +27,7 @@ export type SyncErrorType =
 export interface TelemetryPayload {
   deviceId: string
   sessionId: string
+  transmissionId?: string
   timestamp: string
   sensorType: string
   features: FFTFeatures
@@ -38,6 +41,7 @@ export interface TelemetryPayload {
 const payloadSchema = z.object({
   deviceId: z.string().min(1),
   sessionId: z.string().min(1),
+  transmissionId: z.string().optional(),
   timestamp: z.string(),
   sensorType: z.string(),
   features: z
@@ -59,6 +63,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
   const [syncErrorType, setSyncErrorType] = useState<SyncErrorType>('none')
   const [remoteData, setRemoteData] = useState<TelemetryPayload[]>([])
   const [mobileConnected, setMobileConnected] = useState(false)
+  const [transmissionId, setTransmissionId] = useState<string | null>(null)
 
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
   const [latency, setLatency] = useState(0)
@@ -68,6 +73,8 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
   const offlineQueue = useRef<TelemetryPayload[]>([])
   const mobileConnectedRef = useRef(mobileConnected)
   const lastTimestampRef = useRef<number>(0)
+  const syncStatusRef = useRef(syncStatus)
+  const transmissionIdRef = useRef(transmissionId)
 
   useEffect(() => {
     mobileConnectedRef.current = mobileConnected
@@ -81,16 +88,27 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
   }, [isCapturing, mobileConnected])
 
   useEffect(() => {
+    syncStatusRef.current = syncStatus
+  }, [syncStatus])
+
+  useEffect(() => {
+    transmissionIdRef.current = transmissionId
+  }, [transmissionId])
+
+  // Monitor mode and basic connectivity
+  useEffect(() => {
     if (typeof window === 'undefined' || !sessionId) return
 
     setRemoteData([])
     setMobileConnected(false)
-    setSyncStatus('Conectando...')
+    setTransmissionId(null)
+    setSyncStatus('Connecting')
     setSyncErrorType('none')
 
     let isMounted = true
 
     const fetchInitialData = async (retryCount = 0) => {
+      if (isCapturingRef.current) return
       try {
         const result = await pb.collection('telemetry').getList(1, 50, {
           filter: `sessionId = '${sessionId}'`,
@@ -107,7 +125,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
             .reverse() as unknown as TelemetryPayload[]
           setRemoteData(validItems)
           setSyncStatus('Connected')
-        } else if (!isCapturingRef.current) {
+        } else {
           setSyncStatus('Aguardando dispositivo móvel')
         }
       } catch (error: any) {
@@ -124,27 +142,34 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
       }
     }
 
-    fetchInitialData()
+    if (!isCapturingRef.current) {
+      fetchInitialData()
+    }
 
-    pb.onConnectionChange((status: ConnectionStatus, error?: SkipCloudError) => {
-      if (!isMounted) return
-      if (status === 'error') {
-        setSyncStatus('Offline')
-        if (error && error.type) {
-          setSyncErrorType(error.type as SyncErrorType)
-          addLog('error', `Connection error: ${error.message}`, 'Network')
-        } else {
-          addLog('error', 'Connection lost to Skip Cloud', 'Network')
+    const unsubConnection = pb.onConnectionChange(
+      (status: ConnectionStatus, error?: SkipCloudError) => {
+        if (!isMounted) return
+        if (status === 'error') {
+          if (!isCapturingRef.current) setSyncStatus('Offline')
+          if (error && error.type) {
+            setSyncErrorType(error.type as SyncErrorType)
+            addLog('error', `Connection error: ${error.message}`, 'Network')
+          } else {
+            addLog('error', 'Connection lost to Skip Cloud', 'Network')
+          }
+        } else if (status === 'reconnecting') {
+          if (!isCapturingRef.current) setSyncStatus('Retrying')
+        } else if (status === 'connecting') {
+          if (!isCapturingRef.current) setSyncStatus('Connecting')
+        } else if (status === 'connected') {
+          setSyncErrorType('none')
+          if (!isCapturingRef.current) {
+            setSyncStatus(mobileConnectedRef.current ? 'Connected' : 'Aguardando dispositivo móvel')
+            addLog('info', 'Connected to Skip Cloud (Monitor)', 'Network')
+          }
         }
-      }
-      if (status === 'reconnecting') setSyncStatus('Reconnecting')
-      if (status === 'connecting') setSyncStatus('Conectando...')
-      if (status === 'connected') {
-        setSyncStatus(mobileConnectedRef.current ? 'Connected' : 'Aguardando dispositivo móvel')
-        setSyncErrorType('none')
-        addLog('info', 'Connected to Skip Cloud', 'Network')
-      }
-    })
+      },
+    )
 
     pb.collection('telemetry').subscribe(`sessionId = '${sessionId}'`, (event: any) => {
       if (isCapturingRef.current) return
@@ -212,14 +237,118 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     return () => {
       isMounted = false
       clearInterval(latencyInterval)
+      unsubConnection()
       pb.collection('telemetry').unsubscribe(`sessionId = '${sessionId}'`)
     }
   }, [sessionId, retryTrigger, addLog])
 
-  const sendPayload = useCallback(
+  // Capturing mode transmission lifecycle
+  useEffect(() => {
+    if (!isCapturing || !sessionId) return
+
+    let isMounted = true
+
+    const initConnection = () => {
+      if (!isMounted) return
+      setSyncStatus('Connecting')
+      addLog('info', 'initConnection: Initiating connection sequence...', 'Network')
+      if (pb.connectionStatus === 'connected') {
+        waitForConnected('connected')
+      }
+    }
+
+    const createTransmission = async () => {
+      if (!isMounted) return
+      setSyncStatus('Creating Transmission')
+      addLog('info', 'createTransmission: Requesting new transmission ID...', 'Network')
+      try {
+        const res = await pb.collection('transmissions').create({
+          sessionId,
+          status: 'active',
+          startedAt: new Date().toISOString(),
+        })
+        if (res && res.id) {
+          confirmTransmissionId(res.id)
+        } else {
+          throw new Error('No ID returned from server')
+        }
+      } catch (err: any) {
+        if (!isMounted) return
+        addLog('error', `Failed at createTransmission: ${err.message}`, 'Network')
+        setSyncStatus('Retrying')
+        setTimeout(() => retryOnFailure('createTransmission'), 3000)
+      }
+    }
+
+    const confirmTransmissionId = (id: string) => {
+      if (!isMounted) return
+      addLog('info', `confirmTransmissionId: Validating ID ${id}...`, 'Network')
+      if (id) {
+        setTransmissionId(id)
+        setSyncStatus('Transmission Active')
+        addLog('info', `Transmission confirmed and active: ${id}`, 'Network')
+      } else {
+        addLog('error', 'Failed at confirmTransmissionId: Invalid ID', 'Network')
+        setSyncStatus('Retrying')
+        setTimeout(() => retryOnFailure('confirmTransmissionId'), 3000)
+      }
+    }
+
+    const retryOnFailure = (step: string) => {
+      if (!isMounted) return
+      addLog('warning', `retryOnFailure: Retrying step ${step}...`, 'Network')
+      if (step === 'createTransmission') createTransmission()
+      if (step === 'confirmTransmissionId') createTransmission()
+    }
+
+    const waitForConnected = (status: ConnectionStatus) => {
+      if (!isMounted) return
+      if (status === 'connected') {
+        if (
+          syncStatusRef.current !== 'Transmission Active' &&
+          syncStatusRef.current !== 'Creating Transmission'
+        ) {
+          setSyncStatus('Connected')
+          addLog('info', 'waitForConnected: Connection established.', 'Network')
+          createTransmission()
+        }
+      } else if (status === 'connecting' || status === 'reconnecting') {
+        setSyncStatus(status === 'reconnecting' ? 'Retrying' : 'Connecting')
+        setTransmissionId(null)
+      } else if (status === 'error') {
+        setSyncStatus('Offline')
+        setTransmissionId(null)
+      }
+    }
+
+    const unsub = pb.onConnectionChange((status) => {
+      waitForConnected(status)
+    })
+
+    initConnection()
+
+    return () => {
+      isMounted = false
+      unsub()
+    }
+  }, [isCapturing, sessionId, addLog])
+
+  const forceReconnect = useCallback(() => {
+    addLog('info', 'Forcing reconnection to Skip Cloud...', 'Network')
+    setSyncErrorType('none')
+    pb.reconnect()
+  }, [addLog])
+
+  const sendTelemetry = useCallback(
     async (payload: TelemetryPayload) => {
       if (!isCapturingRef.current) return
 
+      if (syncStatusRef.current !== 'Transmission Active' || !transmissionIdRef.current) {
+        addLog('warning', 'sendTelemetry skipped: Transmission not active yet.', 'Network')
+        return
+      }
+
+      payload.transmissionId = transmissionIdRef.current
       payload.protocolVersion = '1.0.0'
 
       try {
@@ -254,19 +383,27 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
         return
       }
 
+      const trySend = async (p: TelemetryPayload) => {
+        try {
+          await pb.collection('telemetry').create(p)
+        } catch (err: any) {
+          throw err
+        }
+      }
+
       try {
         if (offlineQueue.current.length > 0) {
           addLog('info', `Flushing ${offlineQueue.current.length} queued payloads...`, 'Network')
           for (const p of offlineQueue.current) {
-            await pb.collection('telemetry').create(p)
+            await trySend(p)
           }
           offlineQueue.current = []
           setPendingSyncCount(0)
         }
 
-        await pb.collection('telemetry').create(payload)
+        await trySend(payload)
         if (navigator.onLine) {
-          setSyncStatus('Connected')
+          setSyncStatus('Transmission Active')
           setSyncErrorType('none')
         }
       } catch (err: any) {
@@ -281,21 +418,18 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
           setSyncErrorType('network')
           addLog('error', 'Failed to send payload. Queued.', 'Network')
         }
+
+        addLog('warning', 'Triggering retryOnFailure for sendTelemetry...', 'Network')
+        setTimeout(() => forceReconnect(), 2000)
       }
     },
-    [addLog],
+    [addLog, forceReconnect],
   )
-
-  const forceReconnect = useCallback(() => {
-    addLog('info', 'Forcing reconnection to Skip Cloud...', 'Network')
-    setSyncErrorType('none')
-    pb.reconnect()
-  }, [addLog])
 
   return {
     syncStatus,
     syncErrorType,
-    sendPayload,
+    sendTelemetry,
     remoteData,
     mobileConnected,
     pendingSyncCount,
