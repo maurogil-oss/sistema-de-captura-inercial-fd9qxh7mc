@@ -38,7 +38,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<'idle' | 'checking' | 'healthy' | 'unhealthy'>('idle')
   const [config, setConfig] = useState<HealthConfig>({
     baseUrl: import.meta.env.VITE_PB_URL || 'https://skipcloud.pockethost.io',
-    path: '/api/health',
+    path: '/',
     timeoutMs: 5000,
   })
   const [details, setDetails] = useState<HealthDetails | null>(null)
@@ -78,8 +78,16 @@ export function HealthProvider({ children }: { children: ReactNode }) {
         setStatus('unhealthy')
         currentDetails.errorType = 'HTTP Error'
         currentDetails.message = `HTTP ${res.status} - ${res.statusText}`
-        pb.connectionStatus = 'error'
-        pb.notifyConnectionChange(new SkipCloudError('Health Check Failed', res.status, 'api'))
+
+        // Soft fail: Only mark connection as error for 5xx server errors
+        // 404 or other 4xx means the server is there, just the endpoint is missing or restricted.
+        if (res.status >= 500) {
+          pb.connectionStatus = 'error'
+          pb.notifyConnectionChange(new SkipCloudError('Health Check Failed', res.status, 'api'))
+        } else {
+          pb.connectionStatus = 'connected'
+          pb.notifyConnectionChange()
+        }
       }
       setDetails(currentDetails)
     } catch (err: any) {
@@ -95,6 +103,8 @@ export function HealthProvider({ children }: { children: ReactNode }) {
         currentDetails.message = `API Health check failed: ${err.message}`
       }
       setDetails(currentDetails)
+
+      // Assume disconnected if we have a network/timeout error
       pb.connectionStatus = 'error'
       pb.notifyConnectionChange(new SkipCloudError(currentDetails.message, 0, 'network'))
     }

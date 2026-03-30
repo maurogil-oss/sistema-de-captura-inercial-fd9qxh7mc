@@ -92,21 +92,31 @@ export default function TripDetails() {
         lastPotholesRef.current = sensors.potholes
       }
 
-      sendTelemetry({
-        deviceId: sessionId,
-        sessionId: sessionId,
-        timestamp: new Date().toISOString(),
-        sensorType: 'inertial',
-        features: latestFftRef.current,
-        quality: {
-          signalConfidence: latestDataRef.current.length > 0 ? 0.98 : 0.0,
-          anomalyScore: anomalyScore,
-        },
-        location: {
-          lat: currentLat,
-          lng: currentLng,
-        },
-      })
+      try {
+        const promise = sendTelemetry({
+          deviceId: sessionId,
+          sessionId: sessionId,
+          timestamp: new Date().toISOString(),
+          sensorType: 'inertial',
+          features: latestFftRef.current,
+          quality: {
+            signalConfidence: latestDataRef.current.length > 0 ? 0.98 : 0.0,
+            anomalyScore: anomalyScore,
+          },
+          location: {
+            lat: currentLat,
+            lng: currentLng,
+          },
+        })
+
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch((err: any) => {
+            console.warn('Telemetry background sync failed silently:', err)
+          })
+        }
+      } catch (err) {
+        console.warn('Telemetry send error caught:', err)
+      }
     }, 500)
     return () => clearInterval(interval)
   }, [sensors.isCapturing, sendTelemetry, sessionId, sensors.potholes])

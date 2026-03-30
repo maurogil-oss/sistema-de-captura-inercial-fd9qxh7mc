@@ -123,7 +123,7 @@ export function HealthCheckWidget() {
                     {details?.rawStatus === 404 && (
                       <li>
                         <strong>Endpoint Not Found:</strong> The path '{config.path}' doesn't exist
-                        on the server. Try toggling between /health and /api/health.
+                        on the server. Try toggling between / and /api/health.
                       </li>
                     )}
                   </ul>
@@ -152,9 +152,9 @@ export function HealthCheckWidget() {
                         className="flex flex-col gap-2 bg-muted/30 p-3 rounded-md border border-border/50"
                       >
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="/health" id="r1" />
+                          <RadioGroupItem value="/" id="r1" />
                           <Label htmlFor="r1" className="font-mono text-xs">
-                            /health
+                            / (Base URL)
                           </Label>
                         </div>
                         <div className="flex items-center space-x-2">
