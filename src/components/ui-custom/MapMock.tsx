@@ -25,6 +25,7 @@ export function MapMock({
 
   const clusters = allClusters.filter((c) => {
     if (!dateRange?.from) return true
+    if (!c.lastDetected) return true
     const d = new Date(c.lastDetected)
     if (d < dateRange.from) return false
     if (dateRange.to && d > dateRange.to) return false
@@ -33,6 +34,7 @@ export function MapMock({
 
   const safetyEvents = allSafetyEvents.filter((e) => {
     if (!dateRange?.from) return true
+    if (!e.timestamp) return true
     const d = new Date(e.timestamp)
     if (d < dateRange.from) return false
     if (dateRange.to && d > dateRange.to) return false
@@ -57,7 +59,8 @@ export function MapMock({
   const hasGradient = conditionHistory && conditionHistory.length > 0
   const gradientId = `wear-gradient-${Math.random().toString(36).substring(2, 9)}`
 
-  const getCoordinates = (lat: number, lng: number) => {
+  const getCoordinates = (lat?: number, lng?: number) => {
+    if (lat === undefined || lng === undefined) return { top: -1, left: -1 }
     const minLat = -23.56
     const maxLat = -23.54
     const minLng = -46.64
@@ -138,9 +141,10 @@ export function MapMock({
           if (top < 0 || top > 100 || left < 0 || left > 100) return null
 
           let colorClass = 'bg-emerald-500'
-          if (cluster.severity_g >= 3) colorClass = 'bg-red-500'
-          else if (cluster.severity_g >= 2) colorClass = 'bg-orange-500'
-          else if (cluster.severity_g >= 1) colorClass = 'bg-yellow-500'
+          const severity = cluster.severity_g ?? 0
+          if (severity >= 3) colorClass = 'bg-red-500'
+          else if (severity >= 2) colorClass = 'bg-orange-500'
+          else if (severity >= 1) colorClass = 'bg-yellow-500'
 
           return (
             <div
@@ -205,15 +209,19 @@ export function MapMock({
                     )}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Detecções: {cluster.detections} | Max Z: {cluster.severity_g.toFixed(1)}g
+                    Detecções: {cluster.detections ?? 0} | Max Z:{' '}
+                    {(cluster.severity_g ?? 0).toFixed(1)}g
                   </p>
                   {cluster.status === 'Repaired' && (
                     <p className="text-[10px] text-blue-500/80 mt-1">
-                      Passagens sem vibração: {cluster.passesWithoutAnomaly}
+                      Passagens sem vibração: {cluster.passesWithoutAnomaly ?? 0}
                     </p>
                   )}
                   <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
-                    Última vez: {new Date(cluster.lastDetected).toLocaleDateString()}
+                    Última vez:{' '}
+                    {cluster.lastDetected
+                      ? new Date(cluster.lastDetected).toLocaleDateString()
+                      : 'Desconhecido'}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -247,7 +255,7 @@ export function MapMock({
                     <AlertTriangle className="w-3.5 h-3.5" /> {event.type}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
-                    {new Date(event.timestamp).toLocaleString()}
+                    {event.timestamp ? new Date(event.timestamp).toLocaleString() : 'Desconhecido'}
                   </p>
                 </TooltipContent>
               </Tooltip>
