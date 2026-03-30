@@ -28,16 +28,18 @@ export function MapMock({
   const allSafetyEvents = useAnomalyStore((state) => state.safetyEvents)
 
   const clusters = allClusters.filter((c) => {
+    if (!c) return false
     if (!dateRange?.from) return true
     if (!c.lastDetected) return true
     const d = new Date(c.lastDetected)
     if (d < dateRange.from) return false
     if (dateRange.to && d > dateRange.to) return false
-    if (c.severity_g < minSeverity) return false
+    if ((c.severity_g || 0) < minSeverity) return false
     return true
   })
 
   const safetyEvents = allSafetyEvents.filter((e) => {
+    if (!e) return false
     if (!dateRange?.from) return true
     if (!e.timestamp) return true
     const d = new Date(e.timestamp)
@@ -143,7 +145,7 @@ export function MapMock({
           if (top < 0 || top > 100 || left < 0 || left > 100) return null
 
           let colorClass = 'bg-emerald-500'
-          const severity = cluster.severity_g ?? 0
+          const severity = cluster.severity_g || 0
           if (severity >= 3) colorClass = 'bg-red-500'
           else if (severity >= 1.5) colorClass = 'bg-orange-500'
           else if (severity >= 0.5) colorClass = 'bg-yellow-500'
@@ -165,8 +167,9 @@ export function MapMock({
           const { top, left } = getCoordinates(cluster.lat, cluster.lng)
           if (top < 0 || top > 100 || left < 0 || left > 100) return null
 
-          const isCritical = cluster.severity_g >= 3
-          const isMod = cluster.severity_g >= 1.5 && cluster.severity_g < 3
+          const severity = cluster.severity_g || 0
+          const isCritical = severity >= 3
+          const isMod = severity >= 1.5 && severity < 3
 
           return (
             <Popover key={cluster.id}>
@@ -255,16 +258,20 @@ export function MapMock({
                 <div className="space-y-1.5 mb-3">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Força G Max:</span>
-                    <span className="font-mono font-medium">{cluster.severity_g.toFixed(1)}G</span>
+                    <span className="font-mono font-medium">
+                      {(cluster.severity_g || 0).toFixed(1)}G
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Detecções:</span>
-                    <span className="font-mono">{cluster.detections}</span>
+                    <span className="font-mono">{cluster.detections || 0}</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Último registro:</span>
                     <span className="font-mono text-[10px]">
-                      {new Date(cluster.lastDetected).toLocaleString()}
+                      {cluster.lastDetected
+                        ? new Date(cluster.lastDetected).toLocaleString()
+                        : 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -311,7 +318,7 @@ export function MapMock({
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Horário:</span>
                     <span className="font-mono text-[10px]">
-                      {new Date(event.timestamp).toLocaleString()}
+                      {event.timestamp ? new Date(event.timestamp).toLocaleString() : 'N/A'}
                     </span>
                   </div>
                 </div>

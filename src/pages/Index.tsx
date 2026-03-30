@@ -15,7 +15,7 @@ import {
 import { StatCard } from '@/components/ui-custom/StatCard'
 import { Badge } from '@/components/ui/badge'
 import { MapMock } from '@/components/ui-custom/MapMock'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { HealthCheckWidget } from '@/components/HealthCheckWidget'
 import { pb } from '@/lib/skip-cloud'
@@ -50,7 +50,7 @@ export default function Index() {
         const recent = new Set<string>()
         const now = Date.now()
         result.items.forEach((item: any) => {
-          if (item.sessionId) {
+          if (item?.sessionId) {
             const itemTime = new Date(item.created).getTime()
             if (now - itemTime < 5 * 60 * 1000) {
               recent.add(item.sessionId)
@@ -67,17 +67,19 @@ export default function Index() {
   }, [])
 
   const filteredClusters = clusters.filter((c) => {
+    if (!c) return false
     if (!dateRange?.from) return true
-    const d = new Date(c.lastDetected)
+    const d = new Date(c.lastDetected || Date.now())
     if (d < dateRange.from) return false
     if (dateRange.to && d > dateRange.to) return false
-    if (c.severity_g < minSeverity[0]) return false
+    if ((c.severity_g || 0) < minSeverity[0]) return false
     return true
   })
 
   const filteredSafety = safetyEvents.filter((e) => {
+    if (!e) return false
     if (!dateRange?.from) return true
-    const d = new Date(e.timestamp)
+    const d = new Date(e.timestamp || Date.now())
     if (d < dateRange.from) return false
     if (dateRange.to && d > dateRange.to) return false
     return true
@@ -88,11 +90,11 @@ export default function Index() {
       .filter((c) => c.status === 'Confirmed' || c.status === 'Repaired')
       .map((c) => ({
         type: 'Feature',
-        geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
+        geometry: { type: 'Point', coordinates: [c.lng || 0, c.lat || 0] },
         properties: {
           id: c.id,
-          severity_g: c.severity_g,
-          detection_count: c.detections,
+          severity_g: c.severity_g || 0,
+          detection_count: c.detections || 0,
           timestamp: c.lastDetected,
           status: c.status,
           type: 'Pothole/Defect',
@@ -101,11 +103,11 @@ export default function Index() {
 
     const safetyFeatures = filteredSafety.map((e) => ({
       type: 'Feature',
-      geometry: { type: 'Point', coordinates: [e.lng, e.lat] },
+      geometry: { type: 'Point', coordinates: [e.lng || 0, e.lat || 0] },
       properties: {
         id: e.id,
         type: 'Safety Risk',
-        event_type: e.type,
+        event_type: e.type || 'Unknown',
         timestamp: e.timestamp,
       },
     }))
@@ -126,7 +128,7 @@ export default function Index() {
 
   const confirmedDefects = filteredClusters.filter((c) => c.status === 'Confirmed').length
   const possibleRepairs = filteredClusters.filter((c) => c.status === 'Repaired').length
-  const mappedDistance = (clusters.length * 1.2 + 42.5).toFixed(1)
+  const mappedDistance = ((clusters?.length || 0) * 1.2 + 42.5).toFixed(1)
   const maintenanceIndex =
     confirmedDefects + possibleRepairs > 0
       ? Math.round((possibleRepairs / (confirmedDefects + possibleRepairs)) * 100)
@@ -138,7 +140,7 @@ export default function Index() {
     .slice(0, 5)
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
+    <div className="space-y-6 w-full mx-auto pb-10">
       <HealthCheckWidget />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -159,12 +161,12 @@ export default function Index() {
             onClick={handleExportGeoJSON}
             className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
           >
-            <Download className="w-4 h-4" /> Exportar para SIG (GeoJSON)
+            <Download className="w-4 h-4" /> Exportar SIG
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Defeitos Confirmados"
           value={confirmedDefects.toString()}
@@ -175,7 +177,7 @@ export default function Index() {
           trendValue="+3 hoje"
         />
         <StatCard
-          title="Eventos de Risco (Near-Miss)"
+          title="Eventos de Risco"
           value={filteredSafety.length.toString()}
           icon={Activity}
           description="Frenagens bruscas e desvios"
@@ -185,26 +187,33 @@ export default function Index() {
           title="Índice de Manutenção"
           value={`${maintenanceIndex}%`}
           icon={Wrench}
-          description={`${possibleRepairs} reparos identificados`}
+          description={`${possibleRepairs} reparos`}
           className="border-blue-500/30 bg-blue-500/5"
         />
         <StatCard
           title="Distância Mapeada"
           value={`${mappedDistance} km`}
           icon={Route}
-          description="Cobertura ativa no período"
+          description="Cobertura ativa"
           className="border-emerald-500/30 bg-emerald-500/5"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Card className="lg:col-span-3 glass-panel overflow-hidden relative flex flex-col min-h-[600px]">
-          <div className="absolute top-4 left-4 z-10 w-72 bg-background/95 backdrop-blur-md rounded-lg border border-border/50 shadow-xl p-4 space-y-5">
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <Settings2 className="w-4 h-4" /> Controles do Mapa
-              </h3>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <Card className="lg:col-span-8 xl:col-span-9 glass-panel overflow-hidden relative flex flex-col h-[600px] lg:h-[700px]">
+          <div className="flex-1 w-full h-full bg-muted/10">
+            <MapMock mode={viewMode} dateRange={dateRange} minSeverity={minSeverity[0]} />
+          </div>
+        </Card>
 
+        <div className="lg:col-span-4 xl:col-span-3 space-y-6 flex flex-col h-full">
+          <Card className="glass-panel shrink-0">
+            <CardHeader className="pb-3 border-b border-border/50">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings2 className="w-4 h-4" /> Controles
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5 pt-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Modo de Visualização</Label>
                 <div className="flex items-center space-x-1 border rounded-md p-1 bg-muted/30">
@@ -212,7 +221,7 @@ export default function Index() {
                     variant={viewMode === 'cluster' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('cluster')}
-                    className="flex-1 h-7 text-xs"
+                    className="flex-1 h-8 text-xs"
                   >
                     <MapPin className="w-3.5 h-3.5 mr-1.5" /> Marcadores
                   </Button>
@@ -220,18 +229,18 @@ export default function Index() {
                     variant={viewMode === 'heatmap' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('heatmap')}
-                    className="flex-1 h-7 text-xs"
+                    className="flex-1 h-8 text-xs"
                   >
                     <MapIcon className="w-3.5 h-3.5 mr-1.5" /> Heatmap
                   </Button>
                 </div>
               </div>
 
-              <div className="space-y-3 pt-2">
+              <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <Label className="text-xs text-muted-foreground">Filtro de Severidade (G)</Label>
+                  <Label className="text-xs text-muted-foreground">Filtro de Severidade</Label>
                   <span className="text-xs font-mono font-medium">
-                    {minSeverity[0].toFixed(1)}G+
+                    {(minSeverity[0] || 0).toFixed(1)}G+
                   </span>
                 </div>
                 <Slider
@@ -244,12 +253,12 @@ export default function Index() {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-between">
+              <div className="flex items-center justify-between pt-2">
                 <Label
                   htmlFor="micromobility"
                   className="text-xs text-muted-foreground cursor-pointer"
                 >
-                  Modo Ciclovia (Sensível)
+                  Modo Ciclovia
                 </Label>
                 <Switch
                   id="micromobility"
@@ -257,45 +266,38 @@ export default function Index() {
                   onCheckedChange={setMicromobilityMode}
                 />
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="flex-1 w-full h-full bg-muted/10">
-            <MapMock mode={viewMode} dateRange={dateRange} minSeverity={minSeverity[0]} />
-          </div>
-        </Card>
-
-        <div className="space-y-6 flex flex-col h-full">
-          <Card className="glass-panel flex-1 flex flex-col max-h-[400px]">
-            <CardHeader className="pb-3">
+          <Card className="glass-panel flex-1 flex flex-col min-h-[300px] lg:max-h-[calc(700px-280px)]">
+            <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-red-500" />
-                Hotspots Críticos
+                Hotspots Prioritários
               </CardTitle>
-              <CardDescription className="text-xs">
-                Segmentos que exigem atenção imediata
-              </CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 p-0">
-              <ScrollArea className="h-[300px] px-6 pb-4">
+            <CardContent className="flex-1 p-0 overflow-hidden">
+              <ScrollArea className="h-full px-4 py-4">
                 {hotspots.length === 0 ? (
                   <div className="text-center text-sm text-muted-foreground py-8">
-                    Nenhum hotspot encontrado no período e severidade selecionados.
+                    Nenhum hotspot encontrado.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {hotspots.map((hotspot, i) => {
-                      const isCritical = hotspot.severity_g >= 3
-                      const isMod = hotspot.severity_g >= 1.5 && hotspot.severity_g < 3
+                      const severity = hotspot.severity_g || 0
+                      const lat = hotspot.lat || 0
+                      const isCritical = severity >= 3
+                      const isMod = severity >= 1.5 && severity < 3
 
                       return (
                         <div
                           key={hotspot.id}
-                          className="p-3 rounded-lg border border-border/50 bg-muted/20 space-y-2"
+                          className="p-3 rounded-lg border border-border/50 bg-muted/20 space-y-2 hover:bg-muted/40 transition-colors"
                         >
                           <div className="flex justify-between items-start">
                             <span className="text-sm font-medium">
-                              #{i + 1} Lat: {hotspot.lat.toFixed(4)}...
+                              #{i + 1} Lat: {lat.toFixed(4)}...
                             </span>
                             <Badge
                               variant="outline"
@@ -313,13 +315,16 @@ export default function Index() {
                           <div className="flex justify-between items-end text-xs text-muted-foreground">
                             <span>
                               Max Força:{' '}
-                              <strong className="text-foreground">
-                                {hotspot.severity_g.toFixed(1)}G
-                              </strong>
+                              <strong className="text-foreground">{severity.toFixed(1)}G</strong>
                             </span>
-                            <span>{hotspot.detections} detecções</span>
+                            <span>{hotspot.detections || 0} detecções</span>
                           </div>
-                          <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-xs text-primary"
+                            asChild
+                          >
                             <Link to={`/trip/${hotspot.id}`}>Ver Detalhes &rarr;</Link>
                           </Button>
                         </div>
@@ -331,35 +336,35 @@ export default function Index() {
             </CardContent>
           </Card>
 
-          <Card className="glass-panel shrink-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
+          <Card className="glass-panel shrink-0 hidden lg:block">
+            <CardHeader className="pb-3 border-b border-border/50">
+              <CardTitle className="text-sm flex items-center gap-2">
                 <Wifi className="w-4 h-4 text-emerald-500" />
-                Veículos em Campo
+                Veículos Ativos
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-3">
               {loading ? (
-                <p className="text-sm text-muted-foreground">Buscando na nuvem...</p>
+                <p className="text-xs text-muted-foreground">Buscando na nuvem...</p>
               ) : activeSessions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum veículo ativo no momento.</p>
+                <p className="text-xs text-muted-foreground">Nenhum veículo ativo no momento.</p>
               ) : (
-                <div className="space-y-2 max-h-[150px] overflow-auto">
-                  {activeSessions.slice(0, 3).map((id) => (
+                <div className="space-y-2">
+                  {activeSessions.slice(0, 2).map((id) => (
                     <div
                       key={id}
-                      className="flex justify-between items-center p-2 rounded bg-muted/30 border border-border/50 text-sm"
+                      className="flex justify-between items-center p-2 rounded bg-muted/30 border border-border/50 text-xs"
                     >
-                      <span className="font-mono text-xs">{id.substring(0, 8)}...</span>
+                      <span className="font-mono">{id.substring(0, 8)}...</span>
                       <span className="flex h-2 w-2 relative">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                       </span>
                     </div>
                   ))}
-                  {activeSessions.length > 3 && (
-                    <p className="text-xs text-center text-muted-foreground pt-1">
-                      + {activeSessions.length - 3} outros ativos
+                  {activeSessions.length > 2 && (
+                    <p className="text-[10px] text-center text-muted-foreground pt-1">
+                      + {activeSessions.length - 2} outros
                     </p>
                   )}
                 </div>
