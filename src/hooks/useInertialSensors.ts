@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { extractFeatures, FFTFeatures } from '@/lib/fft'
 import { useDebug } from '@/stores/DebugContext'
+import { useAnomalyStore } from '@/stores/useAnomalyStore'
 
 export interface SensorDataPoint {
   time: string
@@ -60,6 +61,7 @@ export function useInertialSensors() {
     events: [] as TripEvent[],
     zBuffer: [] as number[],
     lastPotholeTime: 0,
+    lastBrakeTime: 0,
     conditionPercentage: 100,
     conditionLabel: 'Smooth' as 'Smooth' | 'Moderate' | 'Rough',
     history: [100] as number[],
@@ -221,6 +223,9 @@ export function useInertialSensors() {
 
       const mag = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2 + (acc.z || 0) ** 2)
 
+      const micromobilityMode = useAnomalyStore.getState().micromobilityMode
+      const thresholdMultiplier = micromobilityMode ? 0.6 : 1.0
+
       // Add to FFT Buffer
       windowBufferRef.current.push(mag)
       if (windowBufferRef.current.length >= FFT_WINDOW_SIZE) {
@@ -234,12 +239,28 @@ export function useInertialSensors() {
       currentZBuffer.push(gForceZ)
       if (currentZBuffer.length > 120) currentZBuffer.shift()
 
+      // Near-Miss detection (Hard Braking / Swerving on Y-axis)
+      const gForceY = (acc.y || 0) / 9.81
+      if (Math.abs(gForceY) > 0.5) {
+        if (now - roadAnalysisRef.current.lastBrakeTime > 2000) {
+          roadAnalysisRef.current.lastBrakeTime = now
+          roadAnalysisRef.current.events.push({
+            id: `brk-${Date.now()}`,
+            type: 'Frenagem Brusca Detectada',
+            timestamp: new Date().toISOString(),
+            severity: 'high',
+            details: `Desaceleração Y: ${gForceY.toFixed(2)}G`,
+          })
+          addLog('warning', `Frenagem Brusca Detectada: ${gForceY.toFixed(2)}G`, 'Sensor')
+        }
+      }
+
       // Pothole detection (spike in Z-axis)
-      if (Math.abs(gForceZ) > 2.0) {
+      if (Math.abs(gForceZ) > 2.0 * thresholdMultiplier) {
         if (now - roadAnalysisRef.current.lastPotholeTime > 1500) {
           statsRef.current.potholes += 1
           roadAnalysisRef.current.lastPotholeTime = now
-          const sev = Math.abs(gForceZ) > 3.5 ? 'critical' : 'high'
+          const sev = Math.abs(gForceZ) > 3.5 * thresholdMultiplier ? 'critical' : 'high'
           roadAnalysisRef.current.events.push({
             id: `pth-${Date.now()}`,
             type: 'Buraco',

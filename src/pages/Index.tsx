@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Layers,
+  Map,
+  Download,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
 import { Badge } from '@/components/ui/badge'
@@ -20,11 +22,25 @@ import { DevicePairingCard } from '@/components/DevicePairingCard'
 import { HealthCheckWidget } from '@/components/HealthCheckWidget'
 import { pb } from '@/lib/skip-cloud'
 import { useAnomalyStore } from '@/stores/useAnomalyStore'
+import { DateRange } from 'react-day-picker'
+import { subDays } from 'date-fns'
+import { DatePickerWithRange } from '@/components/ui-custom/DatePickerWithRange'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
-function ReliabilityDashboard() {
-  const clusters = useAnomalyStore((state) => state.clusters)
+function ReliabilityDashboard({ dateRange }: { dateRange: DateRange | undefined }) {
+  const allClusters = useAnomalyStore((state) => state.clusters)
+  const clusters = allClusters.filter((c) => {
+    if (!dateRange?.from) return true
+    const d = new Date(c.lastDetected)
+    if (d < dateRange.from) return false
+    if (dateRange.to && d > dateRange.to) return false
+    return true
+  })
+
   const confirmed = clusters.filter((c) => c.status === 'Confirmed').length
   const potential = clusters.filter((c) => c.status === 'Potential').length
+  const repaired = clusters.filter((c) => c.status === 'Repaired').length
   const totalDetections = clusters.reduce((acc, c) => acc + c.detections, 0)
 
   const confidenceLevel =
@@ -42,7 +58,7 @@ function ReliabilityDashboard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-2">
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-background/50 border border-border/50">
             <span className="text-sm text-muted-foreground flex items-center gap-1.5">
               <Layers className="w-4 h-4" /> Total Clusters
@@ -64,6 +80,13 @@ function ReliabilityDashboard() {
             </span>
             <span className="text-2xl font-bold text-red-600 dark:text-red-400">{confirmed}</span>
             <span className="text-[10px] text-red-600/80">{'>= 10 detections'}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <span className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" /> Reparo
+            </span>
+            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{repaired}</span>
+            <span className="text-[10px] text-blue-600/80">{'Sem anomalia (5+ passes)'}</span>
           </div>
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
             <span className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -90,6 +113,13 @@ export default function Index() {
   const [lastGlobalSync, setLastGlobalSync] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  })
+  const [viewMode, setViewMode] = useState<'cluster' | 'heatmap'>('cluster')
+  const { micromobilityMode, setMicromobilityMode, clusters, safetyEvents } = useAnomalyStore()
+
   useEffect(() => {
     let isMounted = true
     const fetchActive = async () => {
@@ -97,7 +127,6 @@ export default function Index() {
         const result = await pb.collection('telemetry').getList(1, 100, { sort: '-created' })
         if (!isMounted) return
 
-        // Extract unique recent session/device IDs
         const recent = new Set<string>()
         const now = Date.now()
         let latestSync: number | null = null
@@ -107,7 +136,6 @@ export default function Index() {
             if (!latestSync || itemTime > latestSync) {
               latestSync = itemTime
             }
-            // consider active if within last 5 minutes
             if (now - itemTime < 5 * 60 * 1000) {
               recent.add(item.sessionId)
             }
@@ -122,6 +150,62 @@ export default function Index() {
     }
     fetchActive()
   }, [])
+
+  const handleExportGeoJSON = () => {
+    const filteredClusters = clusters.filter((c) => {
+      if (!dateRange?.from) return true
+      const d = new Date(c.lastDetected)
+      if (d < dateRange.from) return false
+      if (dateRange.to && d > dateRange.to) return false
+      return true
+    })
+
+    const features = filteredClusters
+      .filter((c) => c.status === 'Confirmed' || c.status === 'Repaired')
+      .map((c) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
+        properties: {
+          id: c.id,
+          severity_g: c.severity_g,
+          detection_count: c.detections,
+          timestamp: c.lastDetected,
+          status: c.status,
+        },
+      }))
+
+    const filteredSafety = safetyEvents.filter((e) => {
+      if (!dateRange?.from) return true
+      const d = new Date(e.timestamp)
+      if (d < dateRange.from) return false
+      if (dateRange.to && d > dateRange.to) return false
+      return true
+    })
+
+    const safetyFeatures = filteredSafety.map((e) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [e.lng, e.lat] },
+      properties: {
+        id: e.id,
+        type: 'Safety Risk',
+        event_type: e.type,
+        timestamp: e.timestamp,
+      },
+    }))
+
+    const geojson = {
+      type: 'FeatureCollection',
+      features: [...features, ...safetyFeatures],
+    }
+
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'anomalies_export.geojson'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="space-y-6">
@@ -184,7 +268,52 @@ export default function Index() {
         />
       </div>
 
-      <ReliabilityDashboard />
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2 border-b border-border/50">
+        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+
+        <div className="flex flex-wrap items-center justify-end gap-4">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="micromobility"
+              checked={micromobilityMode}
+              onCheckedChange={setMicromobilityMode}
+            />
+            <Label htmlFor="micromobility" className="text-sm font-medium cursor-pointer">
+              Modo Ciclovia
+            </Label>
+          </div>
+
+          <div className="flex items-center space-x-1 border rounded-md p-1 bg-background/50">
+            <Button
+              variant={viewMode === 'cluster' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cluster')}
+              className="h-7 px-2.5 text-xs"
+            >
+              <Layers className="w-3.5 h-3.5 mr-1.5" /> Cluster
+            </Button>
+            <Button
+              variant={viewMode === 'heatmap' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('heatmap')}
+              className="h-7 px-2.5 text-xs"
+            >
+              <Map className="w-3.5 h-3.5 mr-1.5" /> Heatmap
+            </Button>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportGeoJSON}
+            className="gap-2 bg-background"
+          >
+            <Download className="w-4 h-4" /> Export Data
+          </Button>
+        </div>
+      </div>
+
+      <ReliabilityDashboard dateRange={dateRange} />
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="col-span-1 glass-panel flex flex-col">
@@ -243,7 +372,7 @@ export default function Index() {
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 min-h-[300px] mt-14 bg-muted/10">
-            <MapMock mode="heatmap" />
+            <MapMock mode={viewMode} dateRange={dateRange} />
           </CardContent>
         </Card>
       </div>

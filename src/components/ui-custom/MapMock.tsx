@@ -1,27 +1,52 @@
 import { cn } from '@/lib/utils'
 import { useSimulation } from '@/stores/SimulationContext'
-import { CloudLightning, MapPin } from 'lucide-react'
+import { CloudLightning, MapPin, AlertTriangle } from 'lucide-react'
 import { TripEvent } from '@/hooks/useInertialSensors'
 import { useAnomalyStore } from '@/stores/useAnomalyStore'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
+import { DateRange } from 'react-day-picker'
 
 export function MapMock({
   className,
   mode = 'default',
   events = [],
   conditionHistory = [],
+  dateRange,
 }: {
   className?: string
-  mode?: 'default' | 'heatmap' | 'potholes'
+  mode?: 'default' | 'heatmap' | 'potholes' | 'cluster'
   events?: TripEvent[]
   conditionHistory?: number[]
+  dateRange?: DateRange
 }) {
   const { isSimulating } = useSimulation()
+  const allClusters = useAnomalyStore((state) => state.clusters)
+  const allSafetyEvents = useAnomalyStore((state) => state.safetyEvents)
 
-  const clusters = useAnomalyStore((state) => state.clusters)
+  const clusters = allClusters.filter((c) => {
+    if (!dateRange?.from) return true
+    const d = new Date(c.lastDetected)
+    if (d < dateRange.from) return false
+    if (dateRange.to && d > dateRange.to) return false
+    return true
+  })
+
+  const safetyEvents = allSafetyEvents.filter((e) => {
+    if (!dateRange?.from) return true
+    const d = new Date(e.timestamp)
+    if (d < dateRange.from) return false
+    if (dateRange.to && d > dateRange.to) return false
+    return true
+  })
 
   const translatedMode =
-    mode === 'heatmap' ? 'MAPA DE CALOR' : mode === 'potholes' ? 'BURACOS E VIA' : 'PADRÃO'
+    mode === 'heatmap'
+      ? 'MAPA DE CALOR'
+      : mode === 'potholes'
+        ? 'BURACOS E VIA'
+        : mode === 'cluster'
+          ? 'CLUSTERS & RISCOS'
+          : 'PADRÃO'
 
   const getConditionColor = (pct: number) => {
     if (pct > 80) return '#10b981' // emerald-500
@@ -31,6 +56,16 @@ export function MapMock({
 
   const hasGradient = conditionHistory && conditionHistory.length > 0
   const gradientId = `wear-gradient-${Math.random().toString(36).substring(2, 9)}`
+
+  const getCoordinates = (lat: number, lng: number) => {
+    const minLat = -23.56
+    const maxLat = -23.54
+    const minLng = -46.64
+    const maxLng = -46.62
+    const top = ((lat - minLat) / (maxLat - minLat)) * 100
+    const left = ((lng - minLng) / (maxLng - minLng)) * 100
+    return { top, left }
+  }
 
   return (
     <div
@@ -94,77 +129,131 @@ export function MapMock({
           strokeWidth={mode === 'potholes' ? '3' : '1.5'}
           strokeDasharray={mode === 'potholes' ? 'none' : '4,4'}
         />
-
-        {/* Potholes specific extra path (optional fallback) */}
-        {mode === 'potholes' && !hasGradient && (
-          <path
-            d="M0,70 Q40,90 100,30"
-            fill="none"
-            stroke="currentColor"
-            className="text-destructive"
-            strokeWidth="1"
-            strokeDasharray="2,2"
-          />
-        )}
       </svg>
 
+      {/* Render Heatmap Gradient Mode */}
+      {mode === 'heatmap' &&
+        clusters.map((cluster) => {
+          const { top, left } = getCoordinates(cluster.lat, cluster.lng)
+          if (top < 0 || top > 100 || left < 0 || left > 100) return null
+
+          let colorClass = 'bg-emerald-500'
+          if (cluster.severity_g >= 3) colorClass = 'bg-red-500'
+          else if (cluster.severity_g >= 2) colorClass = 'bg-orange-500'
+          else if (cluster.severity_g >= 1) colorClass = 'bg-yellow-500'
+
+          return (
+            <div
+              key={`hm-${cluster.id}`}
+              className={cn(
+                'absolute transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full blur-xl opacity-60 pointer-events-none transition-colors',
+                colorClass,
+              )}
+              style={{ left: `${left}%`, top: `${top}%` }}
+            />
+          )
+        })}
+
       {/* Render Global Anomaly Clusters */}
-      {clusters.map((cluster) => {
-        const minLat = -23.56
-        const maxLat = -23.54
-        const minLng = -46.64
-        const maxLng = -46.62
+      {(mode === 'default' || mode === 'cluster') &&
+        clusters.map((cluster) => {
+          const { top, left } = getCoordinates(cluster.lat, cluster.lng)
+          if (top < 0 || top > 100 || left < 0 || left > 100) return null
 
-        const top = ((cluster.lat - minLat) / (maxLat - minLat)) * 100
-        const left = ((cluster.lng - minLng) / (maxLng - minLng)) * 100
-
-        if (top < 0 || top > 100 || left < 0 || left > 100) return null
-
-        return (
-          <TooltipProvider key={cluster.id} delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-20 hover:scale-125 transition-transform"
-                  style={{ left: `${left}%`, top: `${top}%` }}
-                >
-                  {cluster.status === 'Confirmed' ? (
-                    <div className="relative">
-                      <div className="w-4 h-4 rounded-full z-10 relative border-2 border-[#0B0E14] bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)] flex items-center justify-center">
-                        <div className="w-1 h-1 bg-white rounded-full" />
+          return (
+            <TooltipProvider key={cluster.id} delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-20 hover:scale-125 transition-transform"
+                    style={{ left: `${left}%`, top: `${top}%` }}
+                  >
+                    {cluster.status === 'Confirmed' ? (
+                      <div className="relative">
+                        <div className="w-4 h-4 rounded-full z-10 relative border-2 border-[#0B0E14] bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)] flex items-center justify-center">
+                          <div className="w-1 h-1 bg-white rounded-full" />
+                        </div>
+                        <div className="absolute inset-0 rounded-full animate-ping opacity-50 bg-red-600" />
                       </div>
-                      <div className="absolute inset-0 rounded-full animate-ping opacity-50 bg-red-600" />
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <div className="w-3 h-3 rounded-full z-10 relative border-2 border-[#0B0E14] bg-yellow-400 opacity-90" />
-                    </div>
+                    ) : cluster.status === 'Repaired' ? (
+                      <div className="relative">
+                        <div className="w-4 h-4 rounded-full z-10 relative border-2 border-[#0B0E14] bg-blue-500/80 shadow-[0_0_8px_rgba(59,130,246,0.6)] flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 bg-blue-100 rounded-full" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="w-3 h-3 rounded-full z-10 relative border-2 border-[#0B0E14] bg-yellow-400 opacity-90" />
+                      </div>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg z-50">
+                  <p className="font-bold text-sm mb-0.5 flex items-center gap-1.5">
+                    {cluster.status === 'Confirmed' ? (
+                      <span className="text-red-500 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" /> Defeito Confirmado
+                      </span>
+                    ) : cluster.status === 'Repaired' ? (
+                      <span className="text-blue-500 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" /> Possível Reparo
+                      </span>
+                    ) : (
+                      <span className="text-yellow-500 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" /> Potencial Anomalia
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Detecções: {cluster.detections} | Max Z: {cluster.severity_g.toFixed(1)}g
+                  </p>
+                  {cluster.status === 'Repaired' && (
+                    <p className="text-[10px] text-blue-500/80 mt-1">
+                      Passagens sem vibração: {cluster.passesWithoutAnomaly}
+                    </p>
                   )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg z-50">
-                <p className="font-bold text-sm mb-0.5 flex items-center gap-1.5">
-                  {cluster.status === 'Confirmed' ? (
-                    <span className="text-red-500 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" /> Confirmed Anomaly
-                    </span>
-                  ) : (
-                    <span className="text-yellow-500 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" /> Potential Anomaly
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Detected {cluster.detections}/10 times for confirmation
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
-                  First: {new Date(cluster.firstDetected).toLocaleDateString()}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )
-      })}
+                  <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
+                    Última vez: {new Date(cluster.lastDetected).toLocaleDateString()}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        })}
+
+      {/* Render Safety Events (Near-Misses) */}
+      {(mode === 'default' || mode === 'cluster') &&
+        safetyEvents.map((event) => {
+          const { top, left } = getCoordinates(event.lat, event.lng)
+          if (top < 0 || top > 100 || left < 0 || left > 100) return null
+
+          return (
+            <TooltipProvider key={event.id} delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30 hover:scale-125 transition-transform"
+                    style={{ left: `${left}%`, top: `${top}%` }}
+                  >
+                    <div className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center shadow-[0_0_12px_rgba(249,115,22,0.8)] border border-orange-200 rotate-45">
+                      <span className="text-[12px] font-bold text-white -rotate-45 block transform -translate-y-[1px]">
+                        !
+                      </span>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg z-50">
+                  <p className="font-bold text-sm mb-0.5 text-orange-500 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> {event.type}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
+                    {new Date(event.timestamp).toLocaleString()}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        })}
 
       {/* Render Local Event Markers */}
       {events.slice(-10).map((e, idx, arr) => {
@@ -183,33 +272,19 @@ export function MapMock({
         )
       })}
 
-      <div className="absolute top-[48%] left-[48%]">
-        <MapPin className="w-5 h-5 text-primary transform -translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute top-[48%] left-[48%] pointer-events-none">
+        <MapPin className="w-5 h-5 text-primary transform -translate-x-1/2 -translate-y-1/2 opacity-50" />
       </div>
 
       {isSimulating && (
-        <div className="absolute top-[30%] left-[70%]">
+        <div className="absolute top-[30%] left-[70%] pointer-events-none">
           <div className="w-2 h-2 bg-destructive rounded-full" />
           <div className="absolute inset-0 bg-destructive rounded-full animate-ping opacity-75" />
         </div>
       )}
 
-      {mode === 'heatmap' && (
-        <>
-          <div className="absolute top-[60%] left-[30%] w-16 h-16 bg-amber-500/20 blur-xl rounded-full" />
-          <div className="absolute top-[40%] left-[60%] w-24 h-24 bg-destructive/30 blur-2xl rounded-full" />
-          <div className="absolute top-[40%] left-[60%] w-12 h-12 bg-purple-500/40 blur-xl rounded-full" />
-          <div className="absolute top-[45%] left-[65%] flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2">
-            <CloudLightning className="w-5 h-5 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
-            <span className="text-[8px] font-mono text-purple-300 font-bold mt-1 bg-background/80 px-1 rounded">
-              SEVERIDADE 2.0x
-            </span>
-          </div>
-        </>
-      )}
-
       {mode === 'potholes' && hasGradient && (
-        <div className="absolute top-4 left-4 bg-background/80 backdrop-blur px-2 py-1.5 rounded flex gap-2 items-center text-[10px] font-mono border border-border shadow-sm">
+        <div className="absolute top-4 left-4 bg-background/80 backdrop-blur px-2 py-1.5 rounded flex gap-2 items-center text-[10px] font-mono border border-border shadow-sm pointer-events-none">
           <span className="text-muted-foreground">VIA:</span>
           <div className="flex gap-1.5 items-center">
             <div className="w-2 h-2 bg-emerald-500 rounded-full" title="Smooth" />
@@ -219,8 +294,8 @@ export function MapMock({
         </div>
       )}
 
-      <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur px-3 py-1.5 rounded text-[10px] font-mono border border-border text-muted-foreground">
-        CAMADA: {translatedMode} | EVENTOS: {events.length}
+      <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur px-3 py-1.5 rounded text-[10px] font-mono border border-border text-muted-foreground pointer-events-none">
+        CAMADA: {translatedMode} | EVENTOS: {events.length + safetyEvents.length}
       </div>
     </div>
   )
