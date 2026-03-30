@@ -1,10 +1,12 @@
 import { cn } from '@/lib/utils'
 import { useSimulation } from '@/stores/SimulationContext'
-import { CloudLightning, MapPin, AlertTriangle } from 'lucide-react'
+import { MapPin, AlertTriangle, ExternalLink } from 'lucide-react'
 import { TripEvent } from '@/hooks/useInertialSensors'
 import { useAnomalyStore } from '@/stores/useAnomalyStore'
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DateRange } from 'react-day-picker'
+import { Link } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 
 export function MapMock({
   className,
@@ -12,12 +14,14 @@ export function MapMock({
   events = [],
   conditionHistory = [],
   dateRange,
+  minSeverity = 0,
 }: {
   className?: string
   mode?: 'default' | 'heatmap' | 'potholes' | 'cluster'
   events?: TripEvent[]
   conditionHistory?: number[]
   dateRange?: DateRange
+  minSeverity?: number
 }) {
   const { isSimulating } = useSimulation()
   const allClusters = useAnomalyStore((state) => state.clusters)
@@ -29,6 +33,7 @@ export function MapMock({
     const d = new Date(c.lastDetected)
     if (d < dateRange.from) return false
     if (dateRange.to && d > dateRange.to) return false
+    if (c.severity_g < minSeverity) return false
     return true
   })
 
@@ -51,9 +56,9 @@ export function MapMock({
           : 'PADRÃO'
 
   const getConditionColor = (pct: number) => {
-    if (pct > 80) return '#10b981' // emerald-500
-    if (pct > 40) return '#eab308' // yellow-500
-    return '#ef4444' // red-500
+    if (pct > 80) return '#10b981'
+    if (pct > 40) return '#eab308'
+    return '#ef4444'
   }
 
   const hasGradient = conditionHistory && conditionHistory.length > 0
@@ -105,7 +110,6 @@ export function MapMock({
           </defs>
         )}
 
-        {/* Background paths */}
         <path
           d="M0,50 Q25,30 50,50 T100,50"
           fill="none"
@@ -121,7 +125,6 @@ export function MapMock({
           strokeWidth="0.2"
         />
 
-        {/* The main trajectory path mapped with the condition gradient */}
         <path
           d="M10,80 Q50,20 90,80"
           fill="none"
@@ -134,7 +137,6 @@ export function MapMock({
         />
       </svg>
 
-      {/* Render Heatmap Gradient Mode */}
       {mode === 'heatmap' &&
         clusters.map((cluster) => {
           const { top, left } = getCoordinates(cluster.lat, cluster.lng)
@@ -143,8 +145,8 @@ export function MapMock({
           let colorClass = 'bg-emerald-500'
           const severity = cluster.severity_g ?? 0
           if (severity >= 3) colorClass = 'bg-red-500'
-          else if (severity >= 2) colorClass = 'bg-orange-500'
-          else if (severity >= 1) colorClass = 'bg-yellow-500'
+          else if (severity >= 1.5) colorClass = 'bg-orange-500'
+          else if (severity >= 0.5) colorClass = 'bg-yellow-500'
 
           return (
             <div
@@ -158,44 +160,63 @@ export function MapMock({
           )
         })}
 
-      {/* Render Global Anomaly Clusters */}
       {(mode === 'default' || mode === 'cluster') &&
         clusters.map((cluster) => {
           const { top, left } = getCoordinates(cluster.lat, cluster.lng)
           if (top < 0 || top > 100 || left < 0 || left > 100) return null
 
+          const isCritical = cluster.severity_g >= 3
+          const isMod = cluster.severity_g >= 1.5 && cluster.severity_g < 3
+
           return (
-            <TooltipProvider key={cluster.id} delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-20 hover:scale-125 transition-transform"
-                    style={{ left: `${left}%`, top: `${top}%` }}
-                  >
+            <Popover key={cluster.id}>
+              <PopoverTrigger asChild>
+                <div
+                  className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-20 hover:scale-125 transition-transform"
+                  style={{ left: `${left}%`, top: `${top}%` }}
+                >
+                  {cluster.status === 'Confirmed' ? (
+                    <div className="relative">
+                      <div
+                        className={cn(
+                          'w-4 h-4 rounded-full z-10 relative border-2 border-[#0B0E14] flex items-center justify-center',
+                          isCritical
+                            ? 'bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]'
+                            : 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]',
+                        )}
+                      >
+                        <div className="w-1 h-1 bg-white rounded-full" />
+                      </div>
+                      <div
+                        className={cn(
+                          'absolute inset-0 rounded-full animate-ping opacity-50',
+                          isCritical ? 'bg-red-600' : 'bg-orange-500',
+                        )}
+                      />
+                    </div>
+                  ) : cluster.status === 'Repaired' ? (
+                    <div className="relative">
+                      <div className="w-4 h-4 rounded-full z-10 relative border-2 border-[#0B0E14] bg-blue-500/80 shadow-[0_0_8px_rgba(59,130,246,0.6)] flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 bg-blue-100 rounded-full" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="w-3 h-3 rounded-full z-10 relative border-2 border-[#0B0E14] bg-yellow-400 opacity-90" />
+                    </div>
+                  )}
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="bg-popover text-popover-foreground border-border shadow-lg z-50 w-64 p-3">
+                <div className="flex justify-between items-start mb-2">
+                  <p className="font-bold text-sm flex items-center gap-1.5">
                     {cluster.status === 'Confirmed' ? (
-                      <div className="relative">
-                        <div className="w-4 h-4 rounded-full z-10 relative border-2 border-[#0B0E14] bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)] flex items-center justify-center">
-                          <div className="w-1 h-1 bg-white rounded-full" />
-                        </div>
-                        <div className="absolute inset-0 rounded-full animate-ping opacity-50 bg-red-600" />
-                      </div>
-                    ) : cluster.status === 'Repaired' ? (
-                      <div className="relative">
-                        <div className="w-4 h-4 rounded-full z-10 relative border-2 border-[#0B0E14] bg-blue-500/80 shadow-[0_0_8px_rgba(59,130,246,0.6)] flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 bg-blue-100 rounded-full" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <div className="w-3 h-3 rounded-full z-10 relative border-2 border-[#0B0E14] bg-yellow-400 opacity-90" />
-                      </div>
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg z-50">
-                  <p className="font-bold text-sm mb-0.5 flex items-center gap-1.5">
-                    {cluster.status === 'Confirmed' ? (
-                      <span className="text-red-500 flex items-center gap-1">
+                      <span
+                        className={cn(
+                          'flex items-center gap-1',
+                          isCritical ? 'text-red-500' : 'text-orange-500',
+                        )}
+                      >
                         <MapPin className="w-3.5 h-3.5" /> Defeito Confirmado
                       </span>
                     ) : cluster.status === 'Repaired' ? (
@@ -208,62 +229,103 @@ export function MapMock({
                       </span>
                     )}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Detecções: {cluster.detections ?? 0} | Max Z:{' '}
-                    {(cluster.severity_g ?? 0).toFixed(1)}g
-                  </p>
-                  {cluster.status === 'Repaired' && (
-                    <p className="text-[10px] text-blue-500/80 mt-1">
-                      Passagens sem vibração: {cluster.passesWithoutAnomaly ?? 0}
-                    </p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
-                    Última vez:{' '}
-                    {cluster.lastDetected
-                      ? new Date(cluster.lastDetected).toLocaleDateString()
-                      : 'Desconhecido'}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] px-1.5 py-0 h-4',
+                      cluster.status === 'Repaired'
+                        ? 'bg-blue-500/10 text-blue-500'
+                        : isCritical
+                          ? 'bg-red-500/10 text-red-500'
+                          : isMod
+                            ? 'bg-orange-500/10 text-orange-500'
+                            : 'bg-yellow-500/10 text-yellow-500',
+                    )}
+                  >
+                    {cluster.status === 'Repaired'
+                      ? 'Reparado'
+                      : isCritical
+                        ? 'Crítico'
+                        : isMod
+                          ? 'Moderado'
+                          : 'Leve'}
+                  </Badge>
+                </div>
+
+                <div className="space-y-1.5 mb-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Força G Max:</span>
+                    <span className="font-mono font-medium">{cluster.severity_g.toFixed(1)}G</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Detecções:</span>
+                    <span className="font-mono">{cluster.detections}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Último registro:</span>
+                    <span className="font-mono text-[10px]">
+                      {new Date(cluster.lastDetected).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <Link
+                  to={`/trip/${cluster.id}`}
+                  className="flex items-center justify-center gap-1.5 w-full bg-secondary/50 hover:bg-secondary text-secondary-foreground text-xs py-1.5 rounded transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3" /> Ver Detalhes da Sessão
+                </Link>
+              </PopoverContent>
+            </Popover>
           )
         })}
 
-      {/* Render Safety Events (Near-Misses) */}
       {(mode === 'default' || mode === 'cluster') &&
         safetyEvents.map((event) => {
           const { top, left } = getCoordinates(event.lat, event.lng)
           if (top < 0 || top > 100 || left < 0 || left > 100) return null
 
           return (
-            <TooltipProvider key={event.id} delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30 hover:scale-125 transition-transform"
-                    style={{ left: `${left}%`, top: `${top}%` }}
-                  >
-                    <div className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center shadow-[0_0_12px_rgba(249,115,22,0.8)] border border-orange-200 rotate-45">
-                      <span className="text-[12px] font-bold text-white -rotate-45 block transform -translate-y-[1px]">
-                        !
-                      </span>
-                    </div>
+            <Popover key={event.id}>
+              <PopoverTrigger asChild>
+                <div
+                  className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30 hover:scale-125 transition-transform"
+                  style={{ left: `${left}%`, top: `${top}%` }}
+                >
+                  <div className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center shadow-[0_0_12px_rgba(249,115,22,0.8)] border border-orange-200 rotate-45">
+                    <span className="text-[12px] font-bold text-white -rotate-45 block transform -translate-y-[1px]">
+                      !
+                    </span>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent className="bg-popover text-popover-foreground border-border shadow-lg z-50">
-                  <p className="font-bold text-sm mb-0.5 text-orange-500 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> {event.type}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-1 opacity-70">
-                    {event.timestamp ? new Date(event.timestamp).toLocaleString() : 'Desconhecido'}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="bg-popover text-popover-foreground border-border shadow-lg z-50 w-56 p-3">
+                <p className="font-bold text-sm mb-2 text-orange-500 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4" /> Near-Miss / Risco
+                </p>
+                <div className="space-y-1.5 mb-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Tipo:</span>
+                    <span className="font-medium">{event.type}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Horário:</span>
+                    <span className="font-mono text-[10px]">
+                      {new Date(event.timestamp).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  to={`/trip/${event.id}`}
+                  className="flex items-center justify-center gap-1.5 w-full bg-secondary/50 hover:bg-secondary text-secondary-foreground text-xs py-1.5 rounded transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3" /> Ver Contexto
+                </Link>
+              </PopoverContent>
+            </Popover>
           )
         })}
 
-      {/* Render Local Event Markers */}
       {events.slice(-10).map((e, idx, arr) => {
         const t = (idx + 1) / (arr.length + 1)
         const left = Math.pow(1 - t, 2) * 10 + 2 * (1 - t) * t * 50 + Math.pow(t, 2) * 90
