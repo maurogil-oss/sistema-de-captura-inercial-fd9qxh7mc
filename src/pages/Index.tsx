@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils'
 import { RemoteConfigCard } from '@/components/dashboard/RemoteConfigCard'
 import { WearAnalysisCard } from '@/components/dashboard/WearAnalysisCard'
 import { NetworkSimulationCard } from '@/components/dashboard/NetworkSimulationCard'
+import { RWADashboard } from '@/components/dashboard/rwa/RWADashboard'
 
 export default function Index() {
   const { devices, alerts, resolveAlert } = useDeviceStore()
@@ -555,6 +556,8 @@ export default function Index() {
           <WearAnalysisCard />
         </div>
       </div>
+
+      <RWADashboard />
     </div>
   )
 }
