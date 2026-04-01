@@ -58,11 +58,15 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Calibração">
-              <a href="#">
+            <SidebarMenuButton
+              asChild
+              tooltip="Calibração"
+              isActive={location.pathname === '/settings'}
+            >
+              <Link to="/settings">
                 <Settings />
                 <span>Calibração</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

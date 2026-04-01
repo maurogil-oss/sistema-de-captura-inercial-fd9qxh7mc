@@ -10,6 +10,7 @@ import TripDetails from './pages/TripDetails'
 import OrbisSDK from './pages/OrbisSDK'
 import NotFound from './pages/NotFound'
 import Diagnostics from './pages/Diagnostics'
+import Settings from './pages/Settings'
 import { useEffect } from 'react'
 import { SimulationProvider } from './stores/SimulationContext'
 import { DebugProvider } from './stores/DebugContext'
@@ -49,6 +50,7 @@ const App = () => (
 
                 <Route path="/sdk" element={<OrbisSDK />} />
                 <Route path="/diagnostics" element={<Diagnostics />} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

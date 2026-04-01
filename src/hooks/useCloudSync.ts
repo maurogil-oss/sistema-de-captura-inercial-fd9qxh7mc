@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { pb, ConnectionStatus, SkipCloudError } from '@/lib/skip-cloud'
 import { FFTFeatures } from '@/lib/fft'
 import { useDebug } from '@/stores/DebugContext'
+import { useSimulation } from '@/stores/SimulationContext'
 
 export type SyncStatus =
   | 'Offline'
@@ -92,6 +93,7 @@ const BATCH_THRESHOLD = 300 // 60Hz * 5s = 300 points threshold for battery-opti
 
 export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigger: number = 0) {
   const { addLog } = useDebug()
+  const { isSimulatedOffline } = useSimulation()
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('Offline')
   const [syncErrorType, setSyncErrorType] = useState<SyncErrorType>('none')
   const [remoteData, setRemoteData] = useState<TelemetryPayload[]>([])
@@ -418,7 +420,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     if (syncStatusRef.current !== 'Transmission Active' || !transmissionIdRef.current) return
     if (isSyncingRef.current) return
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    if ((typeof navigator !== 'undefined' && !navigator.onLine) || isSimulatedOffline) {
       setSyncStatus('Offline')
       return
     }

@@ -17,7 +17,7 @@ export function MapMock({
   minSeverity = 0,
 }: {
   className?: string
-  mode?: 'default' | 'heatmap' | 'potholes' | 'cluster'
+  mode?: 'default' | 'heatmap' | 'potholes' | 'cluster' | 'predictive'
   events?: TripEvent[]
   conditionHistory?: number[]
   dateRange?: DateRange
@@ -55,7 +55,9 @@ export function MapMock({
         ? 'BURACOS E VIA'
         : mode === 'cluster'
           ? 'CLUSTERS & RISCOS'
-          : 'PADRÃO'
+          : mode === 'predictive'
+            ? 'MANUTENÇÃO PREDITIVA'
+            : 'PADRÃO'
 
   const getConditionColor = (pct: number) => {
     if (pct > 80) return '#10b981'
@@ -131,13 +133,35 @@ export function MapMock({
           d="M10,80 Q50,20 90,80"
           fill="none"
           stroke={
-            hasGradient && mode === 'potholes' ? `url(#${gradientId})` : 'hsl(var(--primary))'
+            hasGradient && mode === 'potholes'
+              ? `url(#${gradientId})`
+              : mode === 'predictive'
+                ? '#8b5cf6'
+                : 'hsl(var(--primary))'
           }
           className={cn('transition-all duration-500', !hasGradient && 'opacity-50')}
-          strokeWidth={mode === 'potholes' ? '3' : '1.5'}
-          strokeDasharray={mode === 'potholes' ? 'none' : '4,4'}
+          strokeWidth={mode === 'potholes' ? '3' : mode === 'predictive' ? '2' : '1.5'}
+          strokeDasharray={mode === 'potholes' ? 'none' : mode === 'predictive' ? '2,4' : '4,4'}
         />
       </svg>
+
+      {mode === 'predictive' &&
+        clusters.map((cluster) => {
+          const { top, left } = getCoordinates(cluster.lat, cluster.lng)
+          if (top < 0 || top > 100 || left < 0 || left > 100) return null
+
+          const size = Math.min(50, 20 + (cluster.detections || 0) * 4)
+
+          return (
+            <div
+              key={`pred-${cluster.id}`}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-purple-500/40 bg-purple-500/20 pointer-events-none flex items-center justify-center transition-all duration-1000"
+              style={{ left: `${left}%`, top: `${top}%`, width: `${size}px`, height: `${size}px` }}
+            >
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
+            </div>
+          )
+        })}
 
       {mode === 'heatmap' &&
         clusters.map((cluster) => {
