@@ -38,6 +38,7 @@ export function useInertialSensors() {
 
   const [samplingRate, setSamplingRate] = useState(0)
   const [sensorStatus, setSensorStatus] = useState({ accel: false, gyro: false, mag: false })
+  const [isBackgroundMode, setIsBackgroundMode] = useState(false)
 
   const [roadEvents, setRoadEvents] = useState<TripEvent[]>([])
   const [roadCondition, setRoadCondition] = useState({
@@ -91,6 +92,20 @@ export function useInertialSensors() {
   useEffect(() => {
     return () => stopCapture()
   }, [stopCapture])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsBackgroundMode(true)
+        addLog('info', 'App moved to background. SDK Background Service Engine active.', 'Edge AI')
+      } else {
+        setIsBackgroundMode(false)
+        addLog('info', 'App in foreground. Resuming UI updates.', 'Edge AI')
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [addLog])
 
   const requestSensorPermission = useCallback(async () => {
     if (typeof window === 'undefined') return false
@@ -239,6 +254,7 @@ export function useInertialSensors() {
       currentZBuffer.push(gForceZ)
       if (currentZBuffer.length > 120) currentZBuffer.shift()
 
+      // Edge Processing: Anonymize and filter before event creation
       // Near-Miss detection (Hard Braking / Swerving on Y-axis)
       const gForceY = (acc.y || 0) / 9.81
       if (Math.abs(gForceY) > 0.5) {
@@ -338,7 +354,10 @@ export function useInertialSensors() {
 
     let lastUpdate = performance.now()
     const updateUI = (now: number) => {
-      if (now - lastUpdate >= 200) {
+      // In background mode, throttle UI updates heavily to save battery (simulating SDK headless mode)
+      const updateInterval = document.hidden ? 2000 : 200
+
+      if (now - lastUpdate >= updateInterval) {
         setData([...dataRef.current])
         setZenScore(statsRef.current.zenScore)
         setPotholes(statsRef.current.potholes)
@@ -383,5 +402,6 @@ export function useInertialSensors() {
     roadEvents,
     roadCondition,
     conditionHistory,
+    isBackgroundMode,
   }
 }

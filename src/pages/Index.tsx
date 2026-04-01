@@ -15,6 +15,9 @@ import {
   BatteryWarning,
   WifiOff,
   ShieldCheck,
+  Cpu,
+  Smartphone,
+  Battery,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
 import { Badge } from '@/components/ui/badge'
@@ -119,6 +122,18 @@ export default function Index() {
     .filter((c) => c.status === 'Confirmed' || c.status === 'Potential')
     .sort((a, b) => (b.severity_g || 0) - (a.severity_g || 0))
     .slice(0, 5)
+
+  const avgBattery =
+    activeDevices.length > 0
+      ? Math.round(
+          activeDevices.reduce((acc, d) => acc + (d.batteryLevel || 100), 0) / activeDevices.length,
+        )
+      : 0
+
+  const totalFiltered = Object.values(devices).reduce((acc, d) => acc + (d.dataFiltered || 0), 0)
+  const totalSent = Object.values(devices).reduce((acc, d) => acc + (d.dataSent || 0), 0)
+  const edgeEfficiency =
+    totalFiltered > 0 ? Math.round((totalFiltered / (totalFiltered + totalSent)) * 100) : 0
 
   return (
     <div className="space-y-6 w-full mx-auto pb-10">
@@ -325,6 +340,43 @@ export default function Index() {
           </Card>
 
           <div className="flex flex-col gap-4 hidden lg:flex">
+            <Card className="glass-panel shrink-0 bg-primary/5 border-primary/20">
+              <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-primary" />
+                  Performance do SDK Edge
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Battery className="w-4 h-4 text-emerald-500" />
+                    Bateria Média (Alvo 2-4%/h)
+                  </div>
+                  <span className="font-mono font-bold text-emerald-500">{avgBattery}%</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      <Smartphone className="w-4 h-4 text-blue-500" />
+                      Eficiência de Filtragem
+                    </span>
+                    <span className="font-mono font-bold text-blue-500">{edgeEfficiency}%</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-blue-500 h-1.5 rounded-full transition-all duration-1000"
+                      style={{ width: `${edgeEfficiency}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
+                    <span>{totalFiltered.toLocaleString()} pts descartados local</span>
+                    <span>{totalSent.toLocaleString()} pts enviados à nuvem</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="glass-panel shrink-0">
               <CardHeader className="pb-3 border-b border-border/50">
                 <CardTitle className="text-sm flex items-center justify-between">
@@ -370,7 +422,7 @@ export default function Index() {
                           </div>
                           <div className="flex justify-between items-center text-[10px] text-muted-foreground">
                             <span className="flex items-center gap-1">
-                              Bateria:{' '}
+                              Bat:{' '}
                               {device.batteryLevel !== undefined ? (
                                 <span
                                   className={cn(
@@ -383,8 +435,10 @@ export default function Index() {
                                 'N/A'
                               )}
                             </span>
+                            <span className="font-mono bg-muted px-1.5 py-0.5 rounded border border-border/50">
+                              SDK {device.sdkVersion || 'v1.0.0'}
+                            </span>
                             <span>
-                              Visto:{' '}
                               {new Date(device.lastSeen).toLocaleTimeString([], {
                                 hour: '2-digit',
                                 minute: '2-digit',

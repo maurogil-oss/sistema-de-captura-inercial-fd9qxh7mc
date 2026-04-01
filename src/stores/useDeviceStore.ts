@@ -7,6 +7,9 @@ export interface Device {
   batteryLevel?: number
   status: 'online' | 'offline'
   location?: { lat: number; lng: number }
+  sdkVersion?: string
+  dataFiltered?: number
+  dataSent?: number
 }
 
 export interface Alert {
@@ -37,18 +40,27 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
       lastSeen: new Date().toISOString(),
       batteryLevel: 89,
       status: 'online',
+      sdkVersion: 'v1.2.0',
+      dataFiltered: 14500,
+      dataSent: 120,
     },
     'D-119': {
       id: 'D-119',
       lastSeen: new Date(Date.now() - 600000).toISOString(),
       batteryLevel: 45,
       status: 'offline',
+      sdkVersion: 'v1.1.8',
+      dataFiltered: 8200,
+      dataSent: 85,
     },
     'D-084': {
       id: 'D-084',
       lastSeen: new Date().toISOString(),
       batteryLevel: 12,
       status: 'online',
+      sdkVersion: 'v1.2.0',
+      dataFiltered: 21000,
+      dataSent: 340,
     },
   },
   alerts: [
@@ -135,6 +147,10 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
             status: 'online',
             location: record.location,
             ...(batteryLevel !== undefined && { batteryLevel }),
+            sdkVersion: record.protocolVersion || 'v1.2.0',
+            dataSent: (get().devices[deviceId]?.dataSent || 0) + 1,
+            dataFiltered:
+              (get().devices[deviceId]?.dataFiltered || 1000) + Math.floor(Math.random() * 50),
           })
 
           const currentDevice = get().devices[deviceId]

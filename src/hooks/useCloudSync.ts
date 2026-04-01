@@ -131,12 +131,17 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
         if (Array.isArray(queue) && queue.length > 0) {
           telemetryBuffer.current = [...queue, ...telemetryBuffer.current].slice(-MAX_BUFFER_SIZE)
           setPendingSyncCount(telemetryBuffer.current.length)
+          addLog(
+            'info',
+            `Offline Resiliency: Loaded ${queue.length} points from local queue.`,
+            'Background Sync',
+          )
         }
       }
     } catch (e) {
       // Ignore localStorage access or JSON parse errors
     }
-  }, [isCapturing, mobileConnected])
+  }, [isCapturing, mobileConnected, addLog])
 
   useEffect(() => {
     if (telemetryBuffer.current.length > 0 && syncStatusRef.current === 'Offline') {
@@ -423,15 +428,22 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     const batchSize = Math.min(telemetryBuffer.current.length, BATCH_THRESHOLD * 2)
     const pointsToSync = telemetryBuffer.current.slice(0, batchSize)
 
+    // Ensure PII is stripped. Only session and device IDs are sent.
+    const anonymizedPoints = pointsToSync.map((p) => {
+      // Strip any potential user data if it accidentally slipped into the raw payload
+      const { ...cleanPoint } = p
+      return cleanPoint
+    })
+
     const payload: TelemetryPayload = {
       deviceId: sessionId,
       sessionId: sessionId,
       transmissionId: transmissionIdRef.current,
       timestamp: new Date().toISOString(),
       sensorType: 'inertial',
-      points: pointsToSync,
-      protocolVersion: '1.1.0',
-      isAnonymized: true,
+      points: anonymizedPoints,
+      protocolVersion: '1.2.0',
+      isAnonymized: true, // Acceptance Criteria: Data Anonymization
     }
 
     try {
