@@ -2,275 +2,228 @@ import { useState, useMemo } from 'react'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, Target, MapIcon, Settings2, Wrench, CheckCircle2 } from 'lucide-react'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { useAnomalyStore } from '@/stores/useAnomalyStore'
+import { MapIcon, Clock, CheckCircle2, AlertTriangle, TrendingUp, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+const trafficFluidityData = [
+  { location: 'Av. Paulista', beforeSpeed: 22, afterSpeed: 35 },
+  { location: 'Rua Augusta', beforeSpeed: 15, afterSpeed: 25 },
+  { location: 'Radial Leste', beforeSpeed: 35, afterSpeed: 48 },
+]
 
 export default function CityInfrastructure() {
-  const { clusters } = useAnomalyStore()
-  const [automationEnabled, setAutomationEnabled] = useState(false)
-  const [viewMode, setViewMode] = useState<'potholes' | 'predictive'>('potholes')
+  const [statusFilter, setStatusFilter] = useState('all')
 
   const serviceOrders = useMemo(() => {
-    return clusters
-      .filter((c) => (c.detections || 0) >= 3 && (c.severity_g || 0) >= 1.5)
-      .sort(
-        (a, b) =>
-          (b.severity_g || 0) * (b.detections || 0) - (a.severity_g || 0) * (a.detections || 0),
-      )
-      .map((c, i) => ({
-        id: `SO-${1024 + i}`,
-        location: `Setor ${String.fromCharCode(65 + (i % 5))}-${Math.floor(Math.random() * 10) + 1}`,
-        lat: c.lat,
-        lng: c.lng,
-        avgG: c.severity_g?.toFixed(1) || '0.0',
-        frequency: c.detections || 0,
-        status: 'pendente',
-      }))
-  }, [clusters])
+    return [
+      {
+        id: 'OS-1024',
+        title: 'Recapeamento Setor A',
+        status: 'open',
+        priority: 'high',
+        location: 'Av. Paulista',
+      },
+      {
+        id: 'OS-1025',
+        title: 'Tapa-buraco Setor B',
+        status: 'in-progress',
+        priority: 'medium',
+        location: 'Rua Augusta',
+      },
+      {
+        id: 'OS-1026',
+        title: 'Manutenção Preditiva',
+        status: 'resolved',
+        priority: 'low',
+        location: 'Radial Leste',
+      },
+      {
+        id: 'OS-1027',
+        title: 'Correção de Desnível',
+        status: 'open',
+        priority: 'medium',
+        location: 'Av. Brasil',
+      },
+    ]
+  }, [])
+
+  const kanbanColumns = [
+    { id: 'open', title: 'Abertas', icon: AlertTriangle, color: 'text-amber-500' },
+    { id: 'in-progress', title: 'Em Andamento', icon: Clock, color: 'text-blue-500' },
+    { id: 'resolved', title: 'Resolvidas', icon: CheckCircle2, color: 'text-emerald-500' },
+  ]
 
   return (
     <div className="space-y-6 animate-fade-in-up pb-12">
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Infraestrutura Urbana</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Zeladoria (Infraestrutura)</h1>
           <p className="text-muted-foreground">
-            Dashboard B2G: Índice de Saúde do Pavimento e Manutenção Preditiva.
+            Gestão de Ordens de Serviço e Impacto na Fluidez do Trânsito.
           </p>
-        </div>
-        <div className="flex items-center space-x-2 bg-muted/30 p-1.5 rounded-lg border border-border/50">
-          <Button
-            variant={viewMode === 'potholes' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('potholes')}
-            className="text-xs"
-          >
-            Zeladoria / Buracos
-          </Button>
-          <Button
-            variant={viewMode === 'predictive' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('predictive')}
-            className="text-xs"
-          >
-            Desgaste / Preditiva
-          </Button>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-12">
-        <div className="md:col-span-8 lg:col-span-9 space-y-6">
-          <Card className="glass-panel overflow-hidden h-[550px] flex flex-col relative">
+        <div className="md:col-span-12 space-y-6">
+          <Card className="glass-panel overflow-hidden h-[500px] flex flex-col relative">
             <CardHeader className="pb-2 border-b border-border/50 z-10 bg-card/70 backdrop-blur absolute w-full top-0">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>
-                    {viewMode === 'predictive' ? 'Wear Analysis' : 'Zeladoria 360'}
-                  </CardTitle>
+                  <CardTitle>Mapeamento de Zeladoria</CardTitle>
                   <CardDescription>
-                    {viewMode === 'predictive'
-                      ? 'Mapeamento de Hotspots de Degradação para Manutenção Preditiva'
-                      : 'Índice de Saúde do Pavimento (PHI) mapeado via FFT inercial'}
+                    Visualização geográfica de anomalias e status de manutenção
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-background shadow-sm">
-                  {viewMode === 'predictive' ? (
-                    <span className="flex items-center gap-1.5 text-purple-500">
-                      <Target className="w-3.5 h-3.5" /> Preditiva
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5">
-                      <MapIcon className="w-3.5 h-3.5" /> Mapeamento
-                    </span>
-                  )}
-                  次
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px] bg-background">
+                      <SelectValue placeholder="Filtrar por Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Status</SelectItem>
+                      <SelectItem value="open">Abertas</SelectItem>
+                      <SelectItem value="in-progress">Em Andamento</SelectItem>
+                      <SelectItem value="resolved">Resolvidas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Badge variant="outline" className="bg-background shadow-sm h-9">
+                    <MapIcon className="w-4 h-4 mr-2" />
+                    Live View
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0 flex-1 relative h-full">
-              <MapMock mode={viewMode} />
+            <CardContent className="p-0 flex-1 relative h-full mt-16">
+              <MapMock mode="potholes" />
             </CardContent>
           </Card>
         </div>
-
-        <div className="md:col-span-4 lg:col-span-3 space-y-6">
-          {viewMode === 'predictive' ? (
-            <Card className="glass-panel h-[550px] flex flex-col">
-              <CardHeader className="pb-4 border-b border-border/50">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Settings2 className="w-4 h-4 text-purple-500" />
-                  Ordem de Serviço (Automação)
-                </CardTitle>
-                <div className="flex items-center justify-between pt-3">
-                  <Label
-                    htmlFor="automation-toggle"
-                    className="text-xs text-muted-foreground flex flex-col gap-1"
-                  >
-                    <span>Gerar O.S. Automática</span>
-                    <span className="text-[10px] font-normal opacity-70">
-                      Para áreas de alto desgaste
-                    </span>
-                  </Label>
-                  <Switch
-                    id="automation-toggle"
-                    checked={automationEnabled}
-                    onCheckedChange={setAutomationEnabled}
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 p-0 overflow-hidden relative">
-                {!automationEnabled ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 text-muted-foreground space-y-3">
-                    <Wrench className="w-8 h-8 opacity-20" />
-                    <p className="text-sm">Automação desativada.</p>
-                    <p className="text-xs opacity-70">
-                      Ative para correlacionar impactos geograficamente e listar ordens de
-                      manutenção sugeridas.
-                    </p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-full">
-                    <div className="p-4 space-y-3">
-                      {serviceOrders.length === 0 ? (
-                        <div className="text-center text-sm text-muted-foreground py-8">
-                          Nenhum hotspot atinge o limite de degradação no momento.
-                        </div>
-                      ) : (
-                        serviceOrders.map((so) => (
-                          <div
-                            key={so.id}
-                            className="p-3 bg-muted/20 border border-border/50 rounded-lg hover:bg-muted/40 transition-colors"
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="font-bold text-sm text-purple-500 flex items-center gap-1.5">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> {so.id}
-                              </span>
-                              <Badge variant="secondary" className="text-[10px]">
-                                Pendente
-                              </Badge>
-                            </div>
-                            <p className="text-xs font-medium mb-2">{so.location}</p>
-                            <div className="grid grid-cols-2 gap-2 text-[10px]">
-                              <div className="bg-background/50 p-1.5 rounded border border-border/50">
-                                <span className="text-muted-foreground block mb-0.5">
-                                  Impacto Médio
-                                </span>
-                                <span className="font-mono font-bold">{so.avgG}G</span>
-                              </div>
-                              <div className="bg-background/50 p-1.5 rounded border border-border/50">
-                                <span className="text-muted-foreground block mb-0.5">
-                                  Frequência
-                                </span>
-                                <span className="font-mono font-bold">
-                                  {so.frequency} detecções
-                                </span>
-                              </div>
-                            </div>
-                            <Button variant="outline" size="sm" className="w-full mt-3 h-7 text-xs">
-                              Aprovar O.S.
-                            </Button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-6">
-              <Card className="glass-panel">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <AlertCircle className="w-4 h-4 text-destructive" />
-                    Zonas Críticas (PHI)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {[
-                    {
-                      zone: 'Setor 4A',
-                      reason: 'Alta Densidade de Buracos',
-                      phi: 32,
-                      severity: 'Alta',
-                      volume: '14.500/dia',
-                    },
-                    {
-                      zone: 'Cruzamento Principal',
-                      reason: 'Pico no Índice de Quase-Acidente',
-                      phi: 85,
-                      severity: 'Crítica',
-                      volume: '42.000/dia',
-                    },
-                  ].map((z) => (
-                    <div
-                      key={z.zone}
-                      className="p-3 bg-muted/30 rounded-lg border border-border/50"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <span className="font-bold text-sm">{z.zone}</span>
-                          <div className="flex gap-3 text-[10px] mt-1 text-muted-foreground font-mono">
-                            <span>
-                              Sev:{' '}
-                              <span
-                                className={
-                                  z.severity === 'Crítica' ? 'text-destructive' : 'text-amber-500'
-                                }
-                              >
-                                {z.severity}
-                              </span>
-                            </span>
-                            <span>Vol: {z.volume}</span>
-                          </div>
-                        </div>
-                        <Badge
-                          variant={z.phi < 50 ? 'destructive' : 'secondary'}
-                          className="font-mono text-[10px] h-5"
-                        >
-                          PHI {z.phi}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">{z.reason}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Card className="glass-panel">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Target className="w-4 h-4 text-primary" />
-                    Auditoria de Velocidade
-                  </CardTitle>
-                  <CardDescription className="text-xs">Zonas Escolares</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span>Média Regulamentada</span>
-                      <span className="font-mono">40 km/h</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-destructive">
-                      <span>Média Real L0</span>
-                      <span className="font-mono">52 km/h</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mt-2">
-                      <div className="h-full bg-destructive w-[75%]" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground text-center mt-2">
-                      Delta de 12km/h detectado em horários de pico
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </div>
       </div>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        {kanbanColumns.map((col) => (
+          <Card key={col.id} className="glass-panel flex flex-col h-[400px]">
+            <CardHeader className="pb-3 border-b border-border/50">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <col.icon className={`w-5 h-5 ${col.color}`} />
+                {col.title}
+                <Badge variant="secondary" className="ml-auto">
+                  {serviceOrders.filter((so) => so.status === col.id).length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 p-3 overflow-y-auto bg-muted/10 space-y-3">
+              {serviceOrders
+                .filter((so) => so.status === col.id)
+                .map((so) => (
+                  <div
+                    key={so.id}
+                    className="bg-card border border-border/50 rounded-lg p-3 shadow-sm hover:shadow-md transition-all"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-bold text-sm">{so.id}</span>
+                      <Badge
+                        variant={so.priority === 'high' ? 'destructive' : 'secondary'}
+                        className="text-[10px]"
+                      >
+                        {so.priority}
+                      </Badge>
+                    </div>
+                    <p className="text-xs font-medium mb-3">{so.title}</p>
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <MapIcon className="w-3 h-3" /> {so.location}
+                      </span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <ArrowRight className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="glass-panel">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                Impacto na Fluidez do Trânsito
+              </CardTitle>
+              <CardDescription>
+                Comparativo de Velocidade Média (km/h) Antes e Depois das Intervenções
+              </CardDescription>
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <AlertTriangle className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Métrica de fluidez baseada em dados inerciais coletados pelos Swarm Nodes.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px] w-full mt-4">
+            <ChartContainer
+              config={{
+                beforeSpeed: { color: 'hsl(var(--destructive))', label: 'Antes (km/h)' },
+                afterSpeed: { color: 'hsl(var(--primary))', label: 'Depois (km/h)' },
+              }}
+            >
+              <BarChart
+                data={trafficFluidityData}
+                margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="location"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar
+                  dataKey="beforeSpeed"
+                  fill="var(--color-beforeSpeed)"
+                  radius={[4, 4, 0, 0]}
+                  name="Antes da Manutenção"
+                />
+                <Bar
+                  dataKey="afterSpeed"
+                  fill="var(--color-afterSpeed)"
+                  radius={[4, 4, 0, 0]}
+                  name="Depois da Manutenção"
+                />
+              </BarChart>
+            </ChartContainer>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

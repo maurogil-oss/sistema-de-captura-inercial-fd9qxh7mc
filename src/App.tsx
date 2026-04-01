@@ -6,6 +6,9 @@ import Layout from './components/Layout'
 import Index from './pages/Index'
 import FleetAnalytics from './pages/FleetAnalytics'
 import CityInfrastructure from './pages/CityInfrastructure'
+import Treasury from './pages/Treasury'
+import Audit from './pages/Audit'
+import Transparency from './pages/Transparency'
 import TripDetails from './pages/TripDetails'
 import OrbisSDK from './pages/OrbisSDK'
 import NotFound from './pages/NotFound'
@@ -41,6 +44,9 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/fleet" element={<FleetAnalytics />} />
                 <Route path="/city" element={<CityInfrastructure />} />
+                <Route path="/treasury" element={<Treasury />} />
+                <Route path="/audit" element={<Audit />} />
+                <Route path="/transparency" element={<Transparency />} />
 
                 {/* Support unique session IDs for real-time Skip Cloud sync */}
                 <Route path="/trip/:sessionId" element={<TripDetails />} />

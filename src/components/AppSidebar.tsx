@@ -1,4 +1,14 @@
-import { Home, BarChart2, Map as MapIcon, Activity, Settings, HelpCircle } from 'lucide-react'
+import {
+  Home,
+  BarChart2,
+  Map as MapIcon,
+  Activity,
+  Settings,
+  HelpCircle,
+  Wallet,
+  ShieldCheck,
+  Users,
+} from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Sidebar,
@@ -15,7 +25,10 @@ import {
 const menuItems = [
   { title: 'Início', icon: Home, url: '/' },
   { title: 'Análise de Frota', icon: BarChart2, url: '/fleet' },
-  { title: 'Infraestrutura Urbana', icon: MapIcon, url: '/city' },
+  { title: 'Zeladoria', icon: MapIcon, url: '/city' },
+  { title: 'Tesouraria', icon: Wallet, url: '/treasury' },
+  { title: 'Auditoria', icon: ShieldCheck, url: '/audit' },
+  { title: 'Transparência', icon: Users, url: '/transparency' },
   { title: 'Telemetria de Viagem', icon: Activity, url: '/trip/latest' },
   { title: 'Ajuda & Docs', icon: HelpCircle, url: '/help' },
 ]
