@@ -133,7 +133,9 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
           setPendingSyncCount(telemetryBuffer.current.length)
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore localStorage access or JSON parse errors
+    }
   }, [isCapturing, mobileConnected])
 
   useEffect(() => {
