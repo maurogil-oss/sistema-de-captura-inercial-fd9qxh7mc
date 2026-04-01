@@ -28,7 +28,7 @@ const menuItems = [
   { title: 'Zeladoria', icon: MapIcon, url: '/city' },
   { title: 'Tesouraria', icon: Wallet, url: '/treasury' },
   { title: 'Auditoria', icon: ShieldCheck, url: '/audit' },
-  { title: 'Transparência', icon: Users, url: '/transparency' },
+  { title: 'Transparência', icon: Users, url: '/portal-cidadao' },
   { title: 'Telemetria de Viagem', icon: Activity, url: '/trip/latest' },
   { title: 'Ajuda & Docs', icon: HelpCircle, url: '/help' },
 ]

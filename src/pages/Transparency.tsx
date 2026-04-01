@@ -1,56 +1,68 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Heart, TreePine, Hammer, ThumbsUp, Users, MapPin, CheckCircle } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { TreePine, Hammer, Wind, Users, ArrowUpRight, Trophy, Star } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
 
 export default function Transparency() {
   return (
-    <div className="space-y-8 animate-fade-in-up pb-12">
-      <div className="flex flex-col items-center text-center space-y-4 py-8 bg-gradient-to-b from-primary/10 to-transparent rounded-3xl border border-primary/10">
-        <Users className="w-16 h-16 text-primary p-4 bg-primary/10 rounded-full" />
-        <h1 className="text-4xl font-extrabold tracking-tight">Portal do Cidadão</h1>
-        <p className="text-lg text-muted-foreground max-w-2xl px-4">
-          Veja os resultados reais do engajamento cidadão na melhoria da nossa cidade. Cada buraco
-          mapeado é um passo para ruas mais seguras.
-        </p>
+    <div className="space-y-8 animate-fade-in-up pb-12 w-full max-w-6xl mx-auto">
+      <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-background via-primary/5 to-primary/10 p-8 md:p-12 text-center">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 via-primary to-blue-500" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center space-y-4">
+          <div className="w-20 h-20 bg-background shadow-xl rounded-full flex items-center justify-center border-4 border-primary/20 mb-2">
+            <Trophy className="w-10 h-10 text-primary" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
+            Portal do Cidadão
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl px-4 font-medium">
+            Veja o impacto real da nossa rede colaborativa. Seus dados de condução segura estão
+            transformando a infraestrutura da cidade todos os dias.
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="glass-panel overflow-hidden relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardContent className="p-6 flex flex-col items-center text-center space-y-3">
-            <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center">
-              <Hammer className="w-6 h-6 text-amber-500" />
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="glass-panel overflow-hidden relative group border-amber-500/20 hover:border-amber-500/50 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/10">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
+          <CardContent className="p-8 flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center shadow-inner">
+              <Hammer className="w-8 h-8 text-amber-500" />
             </div>
-            <h3 className="text-3xl font-bold text-amber-500">500+</h3>
-            <p className="font-medium">Buracos Tapados</p>
+            <div className="space-y-1">
+              <h3 className="text-4xl font-black text-amber-500 tracking-tighter">5.420</h3>
+              <p className="font-bold text-lg text-foreground">Buracos Tapados</p>
+            </div>
             <Tooltip>
               <TooltipTrigger asChild>
-                <p className="text-xs text-muted-foreground cursor-help underline decoration-dotted">
-                  Graças ao mapeamento inercial da comunidade.
+                <p className="text-sm text-muted-foreground cursor-help underline decoration-dotted underline-offset-4">
+                  Identificados pela comunidade
                 </p>
               </TooltipTrigger>
               <TooltipContent>
-                Os sensores dos smartphones detectaram automaticamente as irregularidades,
-                priorizando as ordens de serviço.
+                Detectados automaticamente via telemetria inercial dos smartphones (Swarm Nodes).
               </TooltipContent>
             </Tooltip>
           </CardContent>
         </Card>
 
-        <Card className="glass-panel overflow-hidden relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardContent className="p-6 flex flex-col items-center text-center space-y-3">
-            <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
-              <TreePine className="w-6 h-6 text-emerald-500" />
+        <Card className="glass-panel overflow-hidden relative group border-emerald-500/20 hover:border-emerald-500/50 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
+          <CardContent className="p-8 flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center shadow-inner">
+              <TreePine className="w-8 h-8 text-emerald-500" />
             </div>
-            <h3 className="text-3xl font-bold text-emerald-500">1.250</h3>
-            <p className="font-medium">Árvores Plantadas</p>
+            <div className="space-y-1">
+              <h3 className="text-4xl font-black text-emerald-500 tracking-tighter">12.350</h3>
+              <p className="font-bold text-lg text-foreground">Árvores Plantadas</p>
+            </div>
             <Tooltip>
               <TooltipTrigger asChild>
-                <p className="text-xs text-muted-foreground cursor-help underline decoration-dotted">
-                  Financiadas pelos V-Certs gerados.
+                <p className="text-sm text-muted-foreground cursor-help underline decoration-dotted underline-offset-4">
+                  Financiadas por V-Certs
                 </p>
               </TooltipTrigger>
               <TooltipContent>
@@ -61,118 +73,109 @@ export default function Transparency() {
           </CardContent>
         </Card>
 
-        <Card className="glass-panel overflow-hidden relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-rose-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardContent className="p-6 flex flex-col items-center text-center space-y-3">
-            <div className="w-12 h-12 bg-rose-500/20 rounded-full flex items-center justify-center">
-              <Heart className="w-6 h-6 text-rose-500" />
+        <Card className="glass-panel overflow-hidden relative group border-blue-500/20 hover:border-blue-500/50 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
+          <CardContent className="p-8 flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center shadow-inner">
+              <Wind className="w-8 h-8 text-blue-500" />
             </div>
-            <h3 className="text-3xl font-bold text-rose-500">-12%</h3>
-            <p className="font-medium">Acidentes Viários</p>
+            <div className="space-y-1">
+              <h3 className="text-4xl font-black text-blue-500 tracking-tighter">
+                84 <span className="text-2xl">Ton</span>
+              </h3>
+              <p className="font-bold text-lg text-foreground">CO2 Economizado</p>
+            </div>
             <Tooltip>
               <TooltipTrigger asChild>
-                <p className="text-xs text-muted-foreground cursor-help underline decoration-dotted">
-                  Redução nos últimos 6 meses.
+                <p className="text-sm text-muted-foreground cursor-help underline decoration-dotted underline-offset-4">
+                  Redução em emissões
                 </p>
               </TooltipTrigger>
               <TooltipContent>
-                A manutenção preventiva reduziu as manobras evasivas perigosas.
-              </TooltipContent>
-            </Tooltip>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-panel overflow-hidden relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardContent className="p-6 flex flex-col items-center text-center space-y-3">
-            <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
-              <ThumbsUp className="w-6 h-6 text-blue-500" />
-            </div>
-            <h3 className="text-3xl font-bold text-blue-500">8.4k</h3>
-            <p className="font-medium">Cidadãos Ativos</p>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p className="text-xs text-muted-foreground cursor-help underline decoration-dotted">
-                  Nós da rede (Swarm Nodes) mapeando a cidade.
-                </p>
-              </TooltipTrigger>
-              <TooltipContent>
-                Total de usuários contribuindo passivamente para a base de dados via UOS.
+                Devido à otimização do fluxo de trânsito e redução de frenagens bruscas graças a
+                vias reparadas.
               </TooltipContent>
             </Tooltip>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="glass-panel">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <MapPin className="w-5 h-5 text-primary" />
-            Últimas Conquistas do Bairro
-          </CardTitle>
-          <CardDescription>Veja o que a comunidade alcançou nas últimas semanas.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {[
-              {
-                title: 'Recapeamento Av. Paulista',
-                status: 'Concluído',
-                progress: 100,
-                date: 'Ontem',
-                icon: CheckCircle,
-                color: 'text-emerald-500',
-              },
-              {
-                title: 'Iluminação Inteligente na Praça da Sé',
-                status: 'Em Andamento',
-                progress: 65,
-                date: 'Em andamento',
-                icon: Hammer,
-                color: 'text-amber-500',
-              },
-              {
-                title: 'Sinalização Escolar Zona Sul',
-                status: 'Concluído',
-                progress: 100,
-                date: 'Há 3 dias',
-                icon: CheckCircle,
-                color: 'text-emerald-500',
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-4 p-4 rounded-xl bg-muted/20 border border-border/50"
-              >
-                <div
-                  className={`p-2 rounded-full bg-background border border-border/50 ${item.color}`}
-                >
-                  <item.icon className="w-5 h-5" />
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="glass-panel bg-gradient-to-br from-background to-muted/30">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Users className="w-6 h-6 text-primary" />
                 </div>
-                <div className="flex-1 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold">{item.title}</h4>
-                      <p className="text-xs text-muted-foreground">{item.date}</p>
-                    </div>
-                    <Badge
-                      variant={item.progress === 100 ? 'default' : 'secondary'}
-                      className={
-                        item.progress === 100
-                          ? 'bg-emerald-500 hover:bg-emerald-600 border-none'
-                          : ''
-                      }
-                    >
-                      {item.status}
-                    </Badge>
-                  </div>
-                  <Progress value={item.progress} className="h-1.5" />
+                <div>
+                  <h3 className="text-xl font-bold">Comunidade Ativa</h3>
+                  <p className="text-sm text-muted-foreground">O poder dos Swarm Nodes</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="text-right">
+                <div className="text-3xl font-black text-foreground">42.8K</div>
+                <div className="text-xs font-semibold text-emerald-500 flex items-center justify-end gap-1">
+                  <ArrowUpRight className="w-3 h-3" /> +12% este mês
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">Meta Anual de Engajamento</span>
+                  <span className="font-bold">85%</span>
+                </div>
+                <Progress value={85} className="h-3" />
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Juntos, já mapeamos mais de 80% das vias arteriais da cidade de forma passiva,
+                apenas dirigindo de forma consciente com o app rodando em background.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-panel border-primary/30 shadow-lg shadow-primary/5">
+          <CardContent className="p-6 md:p-8 flex flex-col justify-center h-full items-center text-center space-y-6">
+            <div className="flex -space-x-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className="w-12 h-12 rounded-full border-2 border-background bg-muted flex items-center justify-center overflow-hidden"
+                >
+                  <img
+                    src={`https://img.usecurling.com/ppl/thumbnail?gender=${
+                      i % 2 === 0 ? 'female' : 'male'
+                    }&seed=${i + 10}`}
+                    alt="Cidadão"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+              <div className="w-12 h-12 rounded-full border-2 border-background bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs z-10">
+                +42K
+              </div>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold mb-2">Faça parte da mudança!</h3>
+              <p className="text-muted-foreground mb-6 max-w-sm">
+                Transforme sua condução diária em melhorias reais para o seu bairro. Baixe o app,
+                dirija com cuidado e acumule pontos para a sua região.
+              </p>
+              <div className="flex items-center justify-center gap-1 text-amber-500">
+                <Star className="w-5 h-5 fill-current" />
+                <Star className="w-5 h-5 fill-current" />
+                <Star className="w-5 h-5 fill-current" />
+                <Star className="w-5 h-5 fill-current" />
+                <Star className="w-5 h-5 fill-current" />
+                <span className="ml-2 text-sm font-semibold text-foreground">4.9 na App Store</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

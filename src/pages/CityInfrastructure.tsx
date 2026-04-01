@@ -1,8 +1,17 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { MapIcon, Clock, CheckCircle2, AlertTriangle, TrendingUp, ArrowRight } from 'lucide-react'
+import {
+  MapIcon,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  TrendingUp,
+  ArrowRight,
+  ActivitySquare,
+  RefreshCw,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -24,44 +33,60 @@ const trafficFluidityData = [
 export default function CityInfrastructure() {
   const [statusFilter, setStatusFilter] = useState('all')
 
-  const serviceOrders = useMemo(() => {
-    return [
-      {
-        id: 'OS-1024',
-        title: 'Recapeamento Setor A',
-        status: 'open',
-        priority: 'high',
-        location: 'Av. Paulista',
-      },
-      {
-        id: 'OS-1025',
-        title: 'Tapa-buraco Setor B',
-        status: 'in-progress',
-        priority: 'medium',
-        location: 'Rua Augusta',
-      },
-      {
-        id: 'OS-1026',
-        title: 'Manutenção Preditiva',
-        status: 'resolved',
-        priority: 'low',
-        location: 'Radial Leste',
-      },
-      {
-        id: 'OS-1027',
-        title: 'Correção de Desnível',
-        status: 'open',
-        priority: 'medium',
-        location: 'Av. Brasil',
-      },
-    ]
-  }, [])
+  const [serviceOrders, setServiceOrders] = useState([
+    {
+      id: 'OS-1024',
+      title: 'Recapeamento Setor A',
+      status: 'open',
+      priority: 'high',
+      location: 'Av. Paulista',
+      severity: '3.2G',
+    },
+    {
+      id: 'OS-1025',
+      title: 'Tapa-buraco Setor B',
+      status: 'in-progress',
+      priority: 'medium',
+      location: 'Rua Augusta',
+      severity: '2.5G',
+    },
+    {
+      id: 'OS-1026',
+      title: 'Manutenção Preditiva',
+      status: 'resolved',
+      priority: 'low',
+      location: 'Radial Leste',
+      severity: '1.8G',
+    },
+    {
+      id: 'OS-1027',
+      title: 'Correção de Desnível',
+      status: 'open',
+      priority: 'medium',
+      location: 'Av. Brasil',
+      severity: '2.9G',
+    },
+  ])
 
   const kanbanColumns = [
-    { id: 'open', title: 'Abertas', icon: AlertTriangle, color: 'text-amber-500' },
-    { id: 'in-progress', title: 'Em Andamento', icon: Clock, color: 'text-blue-500' },
-    { id: 'resolved', title: 'Resolvidas', icon: CheckCircle2, color: 'text-emerald-500' },
+    { id: 'open', title: 'Aberto', icon: AlertTriangle, color: 'text-amber-500' },
+    { id: 'in-progress', title: 'Em Manutenção', icon: Clock, color: 'text-blue-500' },
+    { id: 'resolved', title: 'Resolvido', icon: CheckCircle2, color: 'text-emerald-500' },
   ]
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData('card_id', id)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent, status: string) => {
+    e.preventDefault()
+    const id = e.dataTransfer.getData('card_id')
+    setServiceOrders((prev) => prev.map((so) => (so.id === id ? { ...so, status } : so)))
+  }
 
   return (
     <div className="space-y-6 animate-fade-in-up pb-12">
@@ -69,14 +94,21 @@ export default function CityInfrastructure() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Zeladoria (Infraestrutura)</h1>
           <p className="text-muted-foreground">
-            Gestão de Ordens de Serviço e Impacto na Fluidez do Trânsito.
+            Gestão Acionável de Ordens de Serviço (OS) baseada em Telemetria.
           </p>
         </div>
+        <Badge
+          variant="outline"
+          className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 py-1.5 px-3 flex items-center gap-2 w-fit"
+        >
+          <RefreshCw className="w-4 h-4 animate-spin-slow" />
+          Integration Status: Synced
+        </Badge>
       </div>
 
       <div className="grid gap-6 md:grid-cols-12">
         <div className="md:col-span-12 space-y-6">
-          <Card className="glass-panel overflow-hidden h-[500px] flex flex-col relative">
+          <Card className="glass-panel overflow-hidden h-[400px] flex flex-col relative">
             <CardHeader className="pb-2 border-b border-border/50 z-10 bg-card/70 backdrop-blur absolute w-full top-0">
               <div className="flex justify-between items-center">
                 <div>
@@ -93,7 +125,7 @@ export default function CityInfrastructure() {
                     <SelectContent>
                       <SelectItem value="all">Todos os Status</SelectItem>
                       <SelectItem value="open">Abertas</SelectItem>
-                      <SelectItem value="in-progress">Em Andamento</SelectItem>
+                      <SelectItem value="in-progress">Em Manutenção</SelectItem>
                       <SelectItem value="resolved">Resolvidas</SelectItem>
                     </SelectContent>
                   </Select>
@@ -113,8 +145,13 @@ export default function CityInfrastructure() {
 
       <div className="grid gap-6 md:grid-cols-3">
         {kanbanColumns.map((col) => (
-          <Card key={col.id} className="glass-panel flex flex-col h-[400px]">
-            <CardHeader className="pb-3 border-b border-border/50">
+          <Card
+            key={col.id}
+            className="glass-panel flex flex-col h-[400px] border-dashed border-2 transition-colors hover:border-border/80"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, col.id)}
+          >
+            <CardHeader className="pb-3 border-b border-border/50 bg-muted/30">
               <CardTitle className="flex items-center gap-2 text-base">
                 <col.icon className={`w-5 h-5 ${col.color}`} />
                 {col.title}
@@ -129,7 +166,9 @@ export default function CityInfrastructure() {
                 .map((so) => (
                   <div
                     key={so.id}
-                    className="bg-card border border-border/50 rounded-lg p-3 shadow-sm hover:shadow-md transition-all"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, so.id)}
+                    className="bg-card border border-border/50 rounded-lg p-3 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
                   >
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-bold text-sm">{so.id}</span>
@@ -145,9 +184,9 @@ export default function CityInfrastructure() {
                       <span className="flex items-center gap-1">
                         <MapIcon className="w-3 h-3" /> {so.location}
                       </span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6">
-                        <ArrowRight className="w-3 h-3" />
-                      </Button>
+                      <span className="flex items-center gap-1 text-primary">
+                        <ActivitySquare className="w-3 h-3" /> {so.severity}
+                      </span>
                     </div>
                   </div>
                 ))}

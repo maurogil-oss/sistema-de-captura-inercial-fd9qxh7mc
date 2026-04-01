@@ -46,7 +46,7 @@ const App = () => (
                 <Route path="/city" element={<CityInfrastructure />} />
                 <Route path="/treasury" element={<Treasury />} />
                 <Route path="/audit" element={<Audit />} />
-                <Route path="/transparency" element={<Transparency />} />
+                <Route path="/portal-cidadao" element={<Transparency />} />
 
                 {/* Support unique session IDs for real-time Skip Cloud sync */}
                 <Route path="/trip/:sessionId" element={<TripDetails />} />

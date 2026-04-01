@@ -1,215 +1,187 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Wrench, Wifi, Battery, Cpu } from 'lucide-react'
+import { Settings, Wrench, ShieldCheck, Lock, Users, Briefcase } from 'lucide-react'
 
 export default function Help() {
   return (
     <div className="space-y-6 w-full mx-auto pb-10 max-w-5xl animate-in fade-in zoom-in duration-500">
       <div className="space-y-2 mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Ajuda & Documentação</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Ajuda & Documentação Expandida</h1>
         <p className="text-muted-foreground max-w-2xl">
-          Guia de referência para interpretação de métricas e configurações do sistema. Utilize este
-          sumário para entender como a telemetria é capturada e otimizada pelo Orbis SDK.
+          Guia de referência atualizado abrangendo métricas de calibração, gestão operacional (OS),
+          auditoria legal e impacto social.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="glass-panel hover:border-primary/50 transition-colors">
-          <CardHeader className="pb-3">
+        {/* Gestão de OS */}
+        <Card className="glass-panel hover:border-blue-500/50 transition-colors md:col-span-2">
+          <CardHeader className="pb-3 border-b border-border/50">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Settings className="w-5 h-5 text-primary" />
-              Configuração Remota (Remote Config)
+              <Briefcase className="w-5 h-5 text-blue-500" />
+              Gestão de Ordens de Serviço (Kanban)
             </CardTitle>
-            <CardDescription>Ajuste de parâmetros do SDK em tempo real</CardDescription>
+            <CardDescription>Fluxo de trabalho para Zeladoria e Infraestrutura</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground pt-2">
-            <p>
-              O painel de configuração permite ajustar remotamente como os dispositivos coletam
-              dados, equilibrando precisão analítica e consumo de bateria do smartphone.
+          <CardContent className="space-y-4 text-sm text-muted-foreground pt-4">
+            <p className="text-foreground/90 font-medium">
+              O módulo de Zeladoria utiliza um sistema Kanban para transformar anomalias detectadas
+              automaticamente em ações corretivas.
             </p>
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <Badge variant="outline" className="w-fit">
-                  Threshold G-Force
-                </Badge>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border/50">
+                <h4 className="font-semibold text-foreground">Aberto (Open)</h4>
                 <p className="text-xs leading-relaxed">
-                  Define a força inercial mínima necessária para registrar um impacto. Valores mais
-                  baixos (ex: 1.0G) detectam pequenas irregularidades do asfalto, enquanto valores
-                  altos (ex: 3.0G) filtram apenas buracos severos ou colisões.
+                  Anomalias confirmadas por múltiplos Swarm Nodes que atingiram o limite de
+                  severidade (Priority Score). Agurdam triagem da equipe técnica.
                 </p>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Badge variant="outline" className="w-fit">
-                  Freq. Amostragem
-                </Badge>
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border/50">
+                <h4 className="font-semibold text-foreground">Em Manutenção</h4>
                 <p className="text-xs leading-relaxed">
-                  A taxa (em Hz) de leitura dos sensores. 50Hz significa 50 leituras por segundo.
-                  Frequências maiores geram mais precisão a custo de bateria e processamento local.
+                  Ordens despachadas para as equipes de campo. O status é sincronizado em tempo-real
+                  com os aplicativos móveis dos operadores.
+                </p>
+              </div>
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border/50">
+                <h4 className="font-semibold text-foreground">Resolvido</h4>
+                <p className="text-xs leading-relaxed">
+                  Reparo concluído. O sistema continuará monitorando a área passivamente para
+                  garantir a qualidade do serviço (Falta de novos impactos valida o reparo).
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-panel hover:border-purple-500/50 transition-colors">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wrench className="w-5 h-5 text-purple-500" />
-              Manutenção Preditiva (Wear Analysis)
-            </CardTitle>
-            <CardDescription>Como priorizamos reparos viários</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground pt-2">
-            <p>
-              A análise de desgaste identifica segmentos viários críticos cruzando e processando
-              dados coletados de múltiplos veículos simultaneamente.
-            </p>
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20 w-fit">
-                  Priority Score
-                </Badge>
-                <p className="text-xs leading-relaxed">
-                  Calculado multiplicando a <strong>Frequência</strong> (número de detecções ou
-                  passagens) pela <strong>Severidade Média</strong> (Força G). Segmentos com Score
-                  &gt; 10 são classificados automaticamente como Alta Prioridade.
-                </p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Badge variant="outline" className="w-fit">
-                  Gerar O.S.
-                </Badge>
-                <p className="text-xs leading-relaxed">
-                  Permite criar uma Ordem de Serviço acionável para as equipes de manutenção,
-                  incluindo as coordenadas geoespaciais e o nível de urgência do segmento detectado.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-panel hover:border-blue-500/50 transition-colors">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wifi className="w-5 h-5 text-blue-500" />
-              Simulação de Rede (Network Sandbox)
-            </CardTitle>
-            <CardDescription>Testes de resiliência e estabilidade offline</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground pt-2">
-            <p>
-              Ferramenta exclusiva de desenvolvimento para estressar o comportamento do SDK durante
-              a perda de conectividade com a infraestrutura cloud.
-            </p>
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <Badge variant="outline" className="w-fit">
-                  Offline Queue
-                </Badge>
-                <p className="text-xs leading-relaxed">
-                  Quando a rede 3G/4G cai, os eventos críticos (impactos, frenagens bruscas) são
-                  empacotados e armazenados numa fila local e criptografada no dispositivo do
-                  motorista.
-                </p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Badge variant="outline" className="w-fit">
-                  Cloud Sync (Live)
-                </Badge>
-                <p className="text-xs leading-relaxed">
-                  Ao recuperar o sinal, o SDK orquestra e descarrega a fila pendente sem perda de
-                  integridade dos dados, mantendo a exata ordem cronológica original.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* Transparência Blockchain */}
         <Card className="glass-panel hover:border-emerald-500/50 transition-colors">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Battery className="w-5 h-5 text-emerald-500" />
-              Monitoramento de Bateria
+              <ShieldCheck className="w-5 h-5 text-emerald-500" />
+              Transparência Blockchain (OrbisChain)
             </CardTitle>
-            <CardDescription>Eficiência energética da frota e smartphones</CardDescription>
+            <CardDescription>Auditoria legal via DLT</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground pt-2">
             <p>
-              O sistema inteiro foi arquitetado e otimizado para rodar em background nos smartphones
-              dos motoristas sem drenar a bateria substancialmente.
+              O OrbisChain Explorer permite que órgãos controladores (ex: MP, TCE) verifiquem a
+              autenticidade dos V-Certs gerados sem acessar dados sensíveis.
             </p>
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
                 <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 w-fit">
-                  Alvo de 2% a 4% / h
+                  Prova de Conhecimento Zero (ZKP)
                 </Badge>
                 <p className="text-xs leading-relaxed">
-                  Este é o consumo base esperado do SDK em viagens longas. O alvo é alcançado por
-                  meio de rigorosas otimizações de processamento em tempo real (Edge AI), ativando
-                  as antenas de celular para o envio de dados apenas quando eventos fora do normal
-                  ocorrem.
+                  Os hashes armazenados provam matematicamente que um evento inercial ocorreu numa
+                  determinada região e horário, garantindo a imutabilidade do registro sem expor a
+                  identidade do motorista.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-panel md:col-span-2 hover:border-orange-500/50 transition-colors">
-          <CardHeader className="pb-3 border-b border-border/50">
+        {/* Privacidade por Design */}
+        <Card className="glass-panel hover:border-purple-500/50 transition-colors">
+          <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Cpu className="w-5 h-5 text-orange-500" />
-              Edge Computing (Processamento Local)
+              <Lock className="w-5 h-5 text-purple-500" />
+              Privacidade por Design (LGPD)
             </CardTitle>
-            <CardDescription>Inteligência e autonomia no dispositivo</CardDescription>
+            <CardDescription>Conformidade e Proteção de Dados</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5 text-sm text-muted-foreground pt-5">
-            <p className="text-foreground/90 font-medium">
-              Em vez de transmitir 100% da volumosa telemetria bruta (raw data) para a nuvem de
-              forma ininterrupta, o Orbis SDK aplica algoritmos avançados de{' '}
-              <strong>Edge Computing</strong> diretamente na memória do smartphone.
+          <CardContent className="space-y-4 text-sm text-muted-foreground pt-2">
+            <p>
+              A plataforma monitora a conformidade LGPD em tempo real através do Painel de
+              Compliance.
             </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border/50">
-                <h4 className="font-semibold text-foreground flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center text-xs">
-                    1
-                  </span>
-                  Redução de Latência
-                </h4>
+            <div className="space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <Badge variant="outline" className="w-fit">
+                  Truncamento no Edge
+                </Badge>
                 <p className="text-xs leading-relaxed">
-                  O algoritmo identifica assinaturas inerciais de buracos, quebra-molas e eventos de
-                  risco instantaneamente, agindo em milissegundos sem depender da nuvem.
-                </p>
-              </div>
-
-              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border/50">
-                <h4 className="font-semibold text-foreground flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center text-xs">
-                    2
-                  </span>
-                  Eficiência de Filtragem
-                </h4>
-                <p className="text-xs leading-relaxed">
-                  Descarta e filtra as leituras contínuas normais (ruído viário natural sem
-                  impacto), economizando massivamente os pacotes de dados 3G/4G/5G.
-                </p>
-              </div>
-
-              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border/50">
-                <h4 className="font-semibold text-foreground flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center text-xs">
-                    3
-                  </span>
-                  Privacidade por Design
-                </h4>
-                <p className="text-xs leading-relaxed">
-                  A análise mais pesada ocorre de forma blindada no celular do motorista,
-                  transmitindo aos servidores apenas a inferência anonimizada do impacto ou
-                  infraestrutura viária.
+                  O Orbis SDK processa dados brutos diretamente no smartphone. Apenas metadados
+                  anonimizados (como força do impacto e geohash aproximado) são enviados para a
+                  nuvem, garantindo uma taxa de anonimização de 100%.
                 </p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Impacto Social */}
+        <Card className="glass-panel hover:border-amber-500/50 transition-colors md:col-span-2">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="w-5 h-5 text-amber-500" />
+              Impacto Social & Portal do Cidadão
+            </CardTitle>
+            <CardDescription>Engajamento e Equidade Urbana</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 text-sm text-muted-foreground pt-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-foreground flex items-center gap-2">
+                  Mapa de Equidade Social
+                </h4>
+                <p className="text-xs leading-relaxed">
+                  Visível na seção de Auditoria, o mapa de equidade cruza a densidade de usuários
+                  (Swarm Nodes) com dados socioeconômicos. O objetivo é assegurar que áreas de menor
+                  renda recebam distribuição justa dos benefícios da "Onda Verde" e de reparos de
+                  zeladoria, evitando viés algorítmico na priorização de O.S.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-foreground flex items-center gap-2">
+                  Portal do Cidadão (Gamificação)
+                </h4>
+                <p className="text-xs leading-relaxed">
+                  Uma interface pública projetada para mostrar à população o valor prático dos dados
+                  coletados. Exibe KPIs tangíveis de alto impacto social, como a quantidade de
+                  buracos tapados preventivamente, toneladas de CO2 economizadas e árvores plantadas
+                  com fundos dos V-Certs.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Legacy Configs */}
+        <Card className="glass-panel">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Settings className="w-5 h-5 text-primary" />
+              Configuração Remota (SDK)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground pt-2">
+            <p className="text-xs leading-relaxed">
+              Ajuste de parâmetros do SDK em tempo real, como o <strong>
+                Threshold G-Force
+              </strong>{' '}
+              para definir a sensibilidade a impactos e a <strong>Freq. Amostragem</strong> para
+              balancear precisão e consumo de bateria (Alvo de 2% a 4% / h).
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-panel">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Wrench className="w-5 h-5 text-muted-foreground" />
+              Manutenção Preditiva (Wear Analysis)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground pt-2">
+            <p className="text-xs leading-relaxed">
+              O <strong>Priority Score</strong> de um segmento viário é calculado multiplicando a
+              Frequência de detecções pela Severidade Média. Scores &gt; 10 geram cards
+              automaticamente no Kanban de Zeladoria.
+            </p>
           </CardContent>
         </Card>
       </div>
