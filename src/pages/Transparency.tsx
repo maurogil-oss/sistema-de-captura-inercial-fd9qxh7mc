@@ -1,7 +1,25 @@
-import { Card, CardContent } from '@/components/ui/card'
-import { TreePine, Hammer, Wind, Users, ArrowUpRight, Trophy, Star } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  TreePine,
+  Hammer,
+  Wind,
+  Users,
+  ArrowUpRight,
+  Trophy,
+  Star,
+  Leaf,
+  MapPin,
+} from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Progress } from '@/components/ui/progress'
+
+const neighborhoodsRanking = [
+  { name: 'Centro Histórico', co2: 24.5, points: 1250, position: 1 },
+  { name: 'Vila Mariana', co2: 18.2, points: 980, position: 2 },
+  { name: 'Pinheiros', co2: 15.7, points: 840, position: 3 },
+  { name: 'Mooca', co2: 12.1, points: 620, position: 4 },
+  { name: 'Santana', co2: 9.8, points: 450, position: 5 },
+]
 
 export default function Transparency() {
   return (
@@ -99,6 +117,78 @@ export default function Transparency() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="glass-panel border-emerald-500/20">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                <Leaf className="w-6 h-6 text-emerald-500" />
+                Bairros Sustentáveis (Ranking)
+              </CardTitle>
+              <CardDescription>
+                Acompanhe a redução de CO2 por região e veja quem está liderando a descarbonização.
+              </CardDescription>
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 cursor-help">
+                  Entenda o Cálculo (IPCC)
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-sm">
+                Utilizamos as diretrizes do Painel Intergovernamental sobre Mudanças Climáticas
+                (IPCC) para converter telemetria (marcha lenta evitada, frenagens) em redução de
+                emissões de GEE.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {neighborhoodsRanking.map((neighborhood, idx) => (
+              <div
+                key={neighborhood.name}
+                className="flex flex-col p-4 rounded-xl border border-border/50 bg-background/50 hover:bg-emerald-500/5 hover:border-emerald-500/30 transition-colors relative overflow-hidden group"
+              >
+                {idx === 0 && (
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 rounded-bl-full -z-10" />
+                )}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        idx === 0
+                          ? 'bg-amber-500 text-white'
+                          : idx === 1
+                            ? 'bg-slate-300 text-slate-800'
+                            : idx === 2
+                              ? 'bg-amber-700/60 text-white'
+                              : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {neighborhood.position}
+                    </span>
+                    <span className="font-semibold text-sm">{neighborhood.name}</span>
+                  </div>
+                  {idx === 0 && <Trophy className="w-4 h-4 text-amber-500" />}
+                </div>
+
+                <div className="mt-auto space-y-1">
+                  <div className="text-2xl font-black text-emerald-500 tracking-tighter">
+                    -{neighborhood.co2}
+                    <span className="text-sm font-medium text-muted-foreground ml-1">Ton</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                    {neighborhood.points} pts da comunidade
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="glass-panel bg-gradient-to-br from-background to-muted/30">

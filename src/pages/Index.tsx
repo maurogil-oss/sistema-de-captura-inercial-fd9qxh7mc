@@ -5,6 +5,7 @@ import {
   Wifi,
   AlertTriangle,
   Map as MapIcon,
+  Leaf,
   Download,
   MapPin,
   TrendingUp,
@@ -174,7 +175,17 @@ export default function Index() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard
+          title="CO2 Evitado (MRV)"
+          value="84.2t"
+          icon={Leaf}
+          description="Redução por fluidez"
+          tooltip="Cálculo MRV Digital de GEE com base nos fatores de emissão do IPCC para veículos leves em marcha lenta e aceleração."
+          className="border-emerald-500/30 bg-emerald-500/5"
+          trend="up"
+          trendValue="+1.2t"
+        />
         <StatCard
           title="Defeitos Confirmados"
           value={confirmedDefects.toString()}

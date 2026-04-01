@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { LucideIcon } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface StatCardProps {
   title: string
@@ -10,6 +11,7 @@ interface StatCardProps {
   trend?: 'up' | 'down' | 'neutral'
   trendValue?: string
   className?: string
+  tooltip?: string
 }
 
 export function StatCard({
@@ -20,12 +22,24 @@ export function StatCard({
   trend,
   trendValue,
   className,
+  tooltip,
 }: StatCardProps) {
   return (
     <Card className={cn('glass-panel overflow-hidden relative group', className)}>
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        {tooltip ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <CardTitle className="text-sm font-medium text-muted-foreground cursor-help underline decoration-dotted underline-offset-4">
+                {title}
+              </CardTitle>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[250px] text-xs">{tooltip}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        )}
         <Icon className="w-4 h-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
