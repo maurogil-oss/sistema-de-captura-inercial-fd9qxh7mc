@@ -58,6 +58,7 @@ export interface TelemetryPayload {
   quality?: {
     signalConfidence: number
     anomalyScore: number
+    batteryLevel?: number
   }
   location?: {
     lat: number
@@ -65,6 +66,7 @@ export interface TelemetryPayload {
   }
   points?: TelemetryPoint[]
   protocolVersion?: string
+  isAnonymized?: boolean
 }
 
 const payloadSchema = z.object({
@@ -103,6 +105,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null)
 
   const MAX_BUFFER_SIZE = 1000
+  const LOCAL_QUEUE_KEY = 'telemetry_offline_queue'
   const isCapturingRef = useRef(isCapturing)
   const telemetryBuffer = useRef<TelemetryPoint[]>([])
   const isSyncingRef = useRef(false)
@@ -120,7 +123,24 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
     if (!isCapturing && !mobileConnected) {
       setSyncStatus('Aguardando dispositivo móvel')
     }
+
+    try {
+      const stored = localStorage.getItem(LOCAL_QUEUE_KEY)
+      if (stored) {
+        const queue = JSON.parse(stored)
+        if (Array.isArray(queue) && queue.length > 0) {
+          telemetryBuffer.current = [...queue, ...telemetryBuffer.current].slice(-MAX_BUFFER_SIZE)
+          setPendingSyncCount(telemetryBuffer.current.length)
+        }
+      }
+    } catch (e) {}
   }, [isCapturing, mobileConnected])
+
+  useEffect(() => {
+    if (telemetryBuffer.current.length > 0 && syncStatusRef.current === 'Offline') {
+      localStorage.setItem(LOCAL_QUEUE_KEY, JSON.stringify(telemetryBuffer.current))
+    }
+  }, [pendingSyncCount])
 
   useEffect(() => {
     syncStatusRef.current = syncStatus
@@ -409,6 +429,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
       sensorType: 'inertial',
       points: pointsToSync,
       protocolVersion: '1.1.0',
+      isAnonymized: true,
     }
 
     try {
@@ -432,6 +453,7 @@ export function useCloudSync(sessionId: string, isCapturing: boolean, retryTrigg
       setLastSyncTime(new Date().toISOString())
       setSyncStatus('Transmission Active')
       setSyncErrorType('none')
+      localStorage.removeItem(LOCAL_QUEUE_KEY)
     } catch (err: any) {
       setSyncStatus('Retrying')
       // Important: On failure, we DO NOT slice the buffer. Data is preserved for the next retry

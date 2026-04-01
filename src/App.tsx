@@ -15,10 +15,12 @@ import { SimulationProvider } from './stores/SimulationContext'
 import { DebugProvider } from './stores/DebugContext'
 import { HealthProvider } from './stores/HealthContext'
 import { useAnomalyStore } from './stores/useAnomalyStore'
+import { useDeviceStore } from './stores/useDeviceStore'
 
 const GlobalSyncInit = () => {
   useEffect(() => {
     useAnomalyStore.getState().initializeGlobalSync()
+    useDeviceStore.getState().initializeDeviceSync()
   }, [])
   return null
 }

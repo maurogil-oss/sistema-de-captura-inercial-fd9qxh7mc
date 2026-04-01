@@ -1,4 +1,14 @@
-import { Bell, Search, Play, Square, Stethoscope, Wifi, WifiOff, Loader2 } from 'lucide-react'
+import {
+  Bell,
+  Search,
+  Play,
+  Square,
+  Stethoscope,
+  Wifi,
+  WifiOff,
+  Loader2,
+  ShieldCheck,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Link } from 'react-router-dom'
@@ -29,6 +39,21 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 cursor-help hidden lg:flex">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Anonimização Ativa</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-[250px] text-xs">
+            <p>
+              Os dados de telemetria móvel são rigorosamente anonimizados e não retêm PII,
+              garantindo privacidade desde a coleta no dispositivo.
+            </p>
+          </TooltipContent>
+        </Tooltip>
+
         <Button
           variant={isSimulating ? 'destructive' : 'outline'}
           size="sm"

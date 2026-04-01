@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Activity,
@@ -11,6 +11,10 @@ import {
   Settings2,
   Wrench,
   Route,
+  BellRing,
+  BatteryWarning,
+  WifiOff,
+  ShieldCheck,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
 import { Badge } from '@/components/ui/badge'
@@ -18,8 +22,8 @@ import { MapMock } from '@/components/ui-custom/MapMock'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { HealthCheckWidget } from '@/components/HealthCheckWidget'
-import { pb } from '@/lib/skip-cloud'
 import { useAnomalyStore } from '@/stores/useAnomalyStore'
+import { useDeviceStore } from '@/stores/useDeviceStore'
 import { DateRange } from 'react-day-picker'
 import { subDays } from 'date-fns'
 import { DatePickerWithRange } from '@/components/ui-custom/DatePickerWithRange'
@@ -27,10 +31,10 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
 
 export default function Index() {
-  const [activeSessions, setActiveSessions] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
+  const { devices, alerts, resolveAlert } = useDeviceStore()
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
@@ -40,31 +44,8 @@ export default function Index() {
   const [minSeverity, setMinSeverity] = useState([0])
   const { micromobilityMode, setMicromobilityMode, clusters, safetyEvents } = useAnomalyStore()
 
-  useEffect(() => {
-    let isMounted = true
-    const fetchActive = async () => {
-      try {
-        const result = await pb.collection('telemetry').getList(1, 100, { sort: '-created' })
-        if (!isMounted) return
-
-        const recent = new Set<string>()
-        const now = Date.now()
-        result.items.forEach((item: any) => {
-          if (item?.sessionId) {
-            const itemTime = new Date(item.created).getTime()
-            if (now - itemTime < 5 * 60 * 1000) {
-              recent.add(item.sessionId)
-            }
-          }
-        })
-        setActiveSessions(Array.from(recent))
-        setLoading(false)
-      } catch (e) {
-        if (isMounted) setLoading(false)
-      }
-    }
-    fetchActive()
-  }, [])
+  const activeDevices = Object.values(devices).filter((d) => d.status === 'online')
+  const unresolvedAlerts = alerts.filter((a) => !a.resolved)
 
   const filteredClusters = clusters.filter((c) => {
     if (!c) return false
@@ -145,14 +126,21 @@ export default function Index() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
               Gestão de Infraestrutura
             </Badge>
+            <Badge
+              variant="outline"
+              className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+            >
+              <ShieldCheck className="w-3 h-3 mr-1" />
+              Privacidade & Anonimização Ativos
+            </Badge>
           </div>
           <p className="text-muted-foreground">
-            Monitoramento em tempo real de condições viárias e priorização de manutenção.
+            Monitoramento em tempo real de frota, dispositivos e condições viárias.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -336,41 +324,145 @@ export default function Index() {
             </CardContent>
           </Card>
 
-          <Card className="glass-panel shrink-0 hidden lg:block">
-            <CardHeader className="pb-3 border-b border-border/50">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Wifi className="w-4 h-4 text-emerald-500" />
-                Veículos Ativos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-3">
-              {loading ? (
-                <p className="text-xs text-muted-foreground">Buscando na nuvem...</p>
-              ) : activeSessions.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhum veículo ativo no momento.</p>
-              ) : (
-                <div className="space-y-2">
-                  {activeSessions.slice(0, 2).map((id) => (
-                    <div
-                      key={id}
-                      className="flex justify-between items-center p-2 rounded bg-muted/30 border border-border/50 text-xs"
-                    >
-                      <span className="font-mono">{id.substring(0, 8)}...</span>
-                      <span className="flex h-2 w-2 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                      </span>
-                    </div>
-                  ))}
-                  {activeSessions.length > 2 && (
-                    <p className="text-[10px] text-center text-muted-foreground pt-1">
-                      + {activeSessions.length - 2} outros
-                    </p>
+          <div className="flex flex-col gap-4 hidden lg:flex">
+            <Card className="glass-panel shrink-0">
+              <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="text-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wifi className="w-4 h-4 text-emerald-500" />
+                    Status da Frota
+                  </div>
+                  <Badge variant="outline" className="text-[10px] h-5">
+                    {activeDevices.length} Online
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-3 overflow-y-auto max-h-[250px]">
+                {Object.values(devices).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum dispositivo sincronizado.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {Object.values(devices)
+                      .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen))
+                      .slice(0, 5)
+                      .map((device) => (
+                        <div
+                          key={device.id}
+                          className="flex flex-col p-2 rounded bg-muted/30 border border-border/50 text-xs space-y-1"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-mono font-medium">
+                              {device.id.substring(0, 8)}...
+                            </span>
+                            {device.status === 'online' ? (
+                              <span className="flex items-center gap-1.5 text-emerald-500 font-medium">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                Online
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1.5 text-muted-foreground">
+                                <WifiOff className="w-3 h-3" /> Offline
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              Bateria:{' '}
+                              {device.batteryLevel !== undefined ? (
+                                <span
+                                  className={cn(
+                                    device.batteryLevel < 15 ? 'text-destructive font-bold' : '',
+                                  )}
+                                >
+                                  {device.batteryLevel}%
+                                </span>
+                              ) : (
+                                'N/A'
+                              )}
+                            </span>
+                            <span>
+                              Visto:{' '}
+                              {new Date(device.lastSeen).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="glass-panel shrink-0">
+              <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="text-sm flex items-center justify-between text-foreground">
+                  <div className="flex items-center gap-2">
+                    <BellRing className="w-4 h-4 text-orange-500" />
+                    Alertas do Sistema
+                  </div>
+                  {unresolvedAlerts.length > 0 && (
+                    <Badge variant="destructive" className="text-[10px] h-5">
+                      {unresolvedAlerts.length}
+                    </Badge>
                   )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-3 overflow-y-auto max-h-[250px]">
+                {unresolvedAlerts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum alerta ativo.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {unresolvedAlerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className={cn(
+                          'flex flex-col p-2 rounded border text-xs space-y-1.5',
+                          alert.severity === 'Critical'
+                            ? 'bg-destructive/10 border-destructive/20 text-destructive'
+                            : alert.severity === 'Moderate'
+                              ? 'bg-orange-500/10 border-orange-500/20 text-orange-500'
+                              : 'bg-blue-500/10 border-blue-500/20 text-blue-500',
+                        )}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold flex items-center gap-1.5">
+                            {alert.type === 'low_battery' ? (
+                              <BatteryWarning className="w-3.5 h-3.5" />
+                            ) : alert.type === 'telemetry_gap' ? (
+                              <WifiOff className="w-3.5 h-3.5" />
+                            ) : (
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                            )}
+                            {alert.severity}
+                          </span>
+                          <span className="text-[9px] opacity-70">
+                            {new Date(alert.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-[10px] leading-tight opacity-90">{alert.message}</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-[10px] self-end mt-1 px-2 hover:bg-background/50"
+                          onClick={() => resolveAlert(alert.id)}
+                        >
+                          Resolver
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
