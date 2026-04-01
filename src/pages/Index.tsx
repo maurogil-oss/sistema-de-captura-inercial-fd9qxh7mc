@@ -35,6 +35,9 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
+import { RemoteConfigCard } from '@/components/dashboard/RemoteConfigCard'
+import { WearAnalysisCard } from '@/components/dashboard/WearAnalysisCard'
+import { NetworkSimulationCard } from '@/components/dashboard/NetworkSimulationCard'
 
 export default function Index() {
   const { devices, alerts, resolveAlert } = useDeviceStore()
@@ -517,6 +520,17 @@ export default function Index() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      </div>
+
+      {/* New Row for User Story AC */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+        <div className="flex flex-col gap-6">
+          <RemoteConfigCard />
+          <NetworkSimulationCard />
+        </div>
+        <div className="md:col-span-1 lg:col-span-2">
+          <WearAnalysisCard />
         </div>
       </div>
     </div>
