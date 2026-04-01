@@ -195,14 +195,14 @@ export default function Treasury() {
                     </TooltipTrigger>
                     <TooltipContent className="max-w-[250px]">
                       Calculado via MRV Digital com base nas diretrizes do IPCC para fatores de
-                      emissão.
+                      emissão, utilizando dados de telemetria (tempo ocioso, otimização de rotas).
                     </TooltipContent>
                   </Tooltip>
                 </CardTitle>
                 <Globe className="w-4 h-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-emerald-500">84 Tons</div>
+                <div className="text-2xl font-bold text-emerald-500">84 tCO2e</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Evitadas e tokenizadas na OrbisChain.
                 </p>
@@ -270,7 +270,7 @@ export default function Treasury() {
                     </div>
                     <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                       <div className="text-right">
-                        <div className="font-bold text-emerald-500">+{asset.amount} Tons</div>
+                        <div className="font-bold text-emerald-500">+{asset.amount} tCO2e</div>
                         <div className="text-xs text-muted-foreground">OrbisChain</div>
                       </div>
                       <Button variant="outline" size="sm" className="gap-2 cursor-default">

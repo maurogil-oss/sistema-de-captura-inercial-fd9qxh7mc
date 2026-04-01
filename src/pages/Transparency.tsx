@@ -101,7 +101,7 @@ export default function Transparency() {
               <h3 className="text-4xl font-black text-blue-500 tracking-tighter">
                 84 <span className="text-2xl">Ton</span>
               </h3>
-              <p className="font-bold text-lg text-foreground">CO2 Economizado</p>
+              <p className="font-bold text-lg text-foreground">Redução de CO2</p>
             </div>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -124,7 +124,7 @@ export default function Transparency() {
             <div>
               <CardTitle className="text-2xl font-bold flex items-center gap-2">
                 <Leaf className="w-6 h-6 text-emerald-500" />
-                Bairros Sustentáveis (Ranking)
+                Ranking de Descarbonização por Bairro
               </CardTitle>
               <CardDescription>
                 Acompanhe a redução de CO2 por região e veja quem está liderando a descarbonização.

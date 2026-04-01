@@ -26,9 +26,9 @@ const menuItems = [
   { title: 'Início', icon: Home, url: '/' },
   { title: 'Análise de Frota', icon: BarChart2, url: '/fleet' },
   { title: 'Zeladoria', icon: MapIcon, url: '/city' },
-  { title: 'Tesouraria', icon: Wallet, url: '/treasury' },
+  { title: 'Tesouraria Verde', icon: Wallet, url: '/treasury' },
   { title: 'Auditoria', icon: ShieldCheck, url: '/audit' },
-  { title: 'Transparência', icon: Users, url: '/portal-cidadao' },
+  { title: 'Portal do Cidadão', icon: Users, url: '/portal-cidadao' },
   { title: 'Telemetria de Viagem', icon: Activity, url: '/trip/latest' },
   { title: 'Ajuda & Docs', icon: HelpCircle, url: '/help' },
 ]

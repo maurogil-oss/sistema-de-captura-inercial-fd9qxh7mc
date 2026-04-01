@@ -275,7 +275,7 @@ export default function Audit() {
                                 variant="outline"
                                 className="text-[10px] bg-emerald-500/5 text-emerald-600 border-emerald-500/20"
                               >
-                                {cert.amount} Toneladas CO2
+                                {cert.amount} tCO2e
                               </Badge>
                               <span className="text-xs text-muted-foreground">{cert.protocol}</span>
                             </div>
@@ -335,12 +335,13 @@ export default function Audit() {
 
                   <div className="space-y-2 pt-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">CORSIA / Verra Standard</span>
+                      <span className="text-sm font-medium">Diretrizes da ONU (ODS)</span>
                       <span className="text-xs font-semibold text-amber-500">Em auditoria</span>
                     </div>
                     <Progress value={65} className="h-1.5 bg-amber-500/20" />
                     <p className="text-xs text-muted-foreground leading-tight">
-                      Processo de verificação de terceira parte em andamento.
+                      Processo de verificação de terceira parte em andamento para os Objetivos de
+                      Desenvolvimento Sustentável.
                     </p>
                   </div>
                 </CardContent>
