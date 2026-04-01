@@ -44,7 +44,7 @@ export function AppSidebar() {
             <Activity className="w-5 h-5 text-primary" />
           </div>
           <span className="font-bold tracking-tight group-data-[collapsible=icon]:hidden">
-            ORBIS<span className="text-primary">ZEN</span>
+            ORBIS/<span className="text-primary">UOS</span>
           </span>
         </div>
       </SidebarHeader>

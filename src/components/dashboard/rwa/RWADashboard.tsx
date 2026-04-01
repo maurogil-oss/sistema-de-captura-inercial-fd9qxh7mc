@@ -3,6 +3,7 @@ import { RWAForensicCard } from './RWAForensicCard'
 import { RWALiquidityCard } from './RWALiquidityCard'
 import { RWAActivityBridge } from './RWAActivityBridge'
 import { RWAMap } from './RWAMap'
+import { ESGPerformanceReport } from './ESGPerformanceReport'
 import { Badge } from '@/components/ui/badge'
 import { Sparkles } from 'lucide-react'
 
@@ -30,6 +31,8 @@ export function RWADashboard() {
           <RWALiquidityCard />
         </div>
       </div>
+
+      <ESGPerformanceReport />
     </div>
   )
 }

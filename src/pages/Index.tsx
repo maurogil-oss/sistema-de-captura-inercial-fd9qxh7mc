@@ -45,6 +45,7 @@ import { RWADashboard } from '@/components/dashboard/rwa/RWADashboard'
 import { ForensicSecurityMatrix } from '@/components/dashboard/ForensicSecurityMatrix'
 import { RWAScenarioSimulator } from '@/components/dashboard/rwa/RWAScenarioSimulator'
 import { RWALiquidityAlerts } from '@/components/dashboard/rwa/RWALiquidityAlerts'
+import { B2GGovernanceDashboard } from '@/components/dashboard/B2GGovernanceDashboard'
 
 export default function Index() {
   const { devices, alerts, resolveAlert } = useDeviceStore()
@@ -566,6 +567,8 @@ export default function Index() {
         <RWAScenarioSimulator />
         <RWALiquidityAlerts />
       </div>
+
+      <B2GGovernanceDashboard />
 
       <RWADashboard />
     </div>

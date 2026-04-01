@@ -24,7 +24,7 @@ const activities = [
     task: 'Cycle Lane Expansion',
     credit: '+0.8 tCO2e',
     time: '3 hours ago',
-    status: 'secured',
+    status: 'liquidated',
     txHash: '0x2b...9c4',
   },
   {
@@ -84,10 +84,18 @@ export function RWAActivityBridge() {
 
                 <div className="flex items-center gap-3 w-full sm:w-[40%] justify-start sm:justify-end">
                   <div className="text-left sm:text-right min-w-0">
-                    <div className="text-sm font-bold text-emerald-500 truncate">{act.credit}</div>
+                    <div
+                      className={`text-sm font-bold truncate ${act.status === 'liquidated' ? 'text-indigo-500' : 'text-emerald-500'}`}
+                    >
+                      {act.status === 'liquidated' ? `Liquidated (${act.credit})` : act.credit}
+                    </div>
                     {act.status === 'minting' ? (
                       <div className="text-xs text-orange-500 animate-pulse">
                         Minting in Progress...
+                      </div>
+                    ) : act.status === 'liquidated' ? (
+                      <div className="text-[10px] text-indigo-500 font-mono bg-indigo-500/10 px-1 py-0.5 rounded border border-indigo-500/20 mt-1">
+                        Settled: {act.txHash}
                       </div>
                     ) : (
                       <div className="text-[10px] text-muted-foreground font-mono bg-muted/50 px-1 py-0.5 rounded border border-border/50 mt-1">
@@ -96,10 +104,18 @@ export function RWAActivityBridge() {
                     )}
                   </div>
                   <div
-                    className={`p-2 rounded-full shrink-0 order-first sm:order-last ${act.status === 'minting' ? 'bg-orange-500/10' : 'bg-emerald-500/10'}`}
+                    className={`p-2 rounded-full shrink-0 order-first sm:order-last ${
+                      act.status === 'minting'
+                        ? 'bg-orange-500/10'
+                        : act.status === 'liquidated'
+                          ? 'bg-indigo-500/10'
+                          : 'bg-emerald-500/10'
+                    }`}
                   >
                     {act.status === 'minting' ? (
                       <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    ) : act.status === 'liquidated' ? (
+                      <CheckCircle2 className="w-4 h-4 text-indigo-500" />
                     ) : (
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                     )}
