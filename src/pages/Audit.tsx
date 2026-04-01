@@ -11,8 +11,10 @@ import {
   CheckCircle2,
   FileText,
   Search,
+  ExternalLink,
 } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Progress } from '@/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -285,15 +287,29 @@ export default function Audit() {
                           <span className="text-xs text-muted-foreground">
                             {new Date(cert.timestamp).toLocaleDateString()}
                           </span>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="gap-2"
-                            onClick={() => handleViewIntegrity(cert)}
-                          >
-                            <Search className="w-4 h-4" />
-                            Ver Integridade
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="gap-2"
+                              onClick={() => handleViewIntegrity(cert)}
+                            >
+                              <Search className="w-4 h-4" />
+                              <span className="hidden sm:inline">Ver Integridade</span>
+                              <span className="sm:hidden">Ver</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              asChild
+                            >
+                              <Link to="/certificate">
+                                <ExternalLink className="w-4 h-4" />
+                                <span className="hidden sm:inline">Relatório L5</span>
+                                <span className="sm:hidden">L5</span>
+                              </Link>
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}

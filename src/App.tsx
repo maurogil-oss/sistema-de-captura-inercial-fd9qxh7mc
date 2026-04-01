@@ -8,6 +8,7 @@ import FleetAnalytics from './pages/FleetAnalytics'
 import CityInfrastructure from './pages/CityInfrastructure'
 import Treasury from './pages/Treasury'
 import Audit from './pages/Audit'
+import CertificateReport from './pages/CertificateReport'
 import Transparency from './pages/Transparency'
 import TripDetails from './pages/TripDetails'
 import OrbisSDK from './pages/OrbisSDK'
@@ -46,6 +47,7 @@ const App = () => (
                 <Route path="/city" element={<CityInfrastructure />} />
                 <Route path="/treasury" element={<Treasury />} />
                 <Route path="/audit" element={<Audit />} />
+                <Route path="/certificate" element={<CertificateReport />} />
                 <Route path="/portal-cidadao" element={<Transparency />} />
 
                 {/* Support unique session IDs for real-time Skip Cloud sync */}
