@@ -43,6 +43,8 @@ import { WearAnalysisCard } from '@/components/dashboard/WearAnalysisCard'
 import { NetworkSimulationCard } from '@/components/dashboard/NetworkSimulationCard'
 import { RWADashboard } from '@/components/dashboard/rwa/RWADashboard'
 import { ForensicSecurityMatrix } from '@/components/dashboard/ForensicSecurityMatrix'
+import { RWAScenarioSimulator } from '@/components/dashboard/rwa/RWAScenarioSimulator'
+import { RWALiquidityAlerts } from '@/components/dashboard/rwa/RWALiquidityAlerts'
 
 export default function Index() {
   const { devices, alerts, resolveAlert } = useDeviceStore()
@@ -559,6 +561,11 @@ export default function Index() {
       </div>
 
       <ForensicSecurityMatrix />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+        <RWAScenarioSimulator />
+        <RWALiquidityAlerts />
+      </div>
 
       <RWADashboard />
     </div>

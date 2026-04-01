@@ -47,6 +47,15 @@ export function RWAPortfolioCard() {
           </div>
           <span className="font-mono font-bold text-emerald-500">98.4%</span>
         </div>
+        <div className="flex justify-between items-center p-2 bg-blue-500/10 rounded border border-blue-500/20 mt-2">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+              Automated Smart Contract Minting
+            </span>
+          </div>
+          <span className="text-xs text-blue-600 dark:text-blue-400">Active</span>
+        </div>
       </CardContent>
     </Card>
   )

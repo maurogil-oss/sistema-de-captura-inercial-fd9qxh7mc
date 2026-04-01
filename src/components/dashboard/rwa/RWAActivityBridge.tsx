@@ -3,11 +3,46 @@ import { Activity, ArrowRight, CheckCircle2, Hammer } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 const activities = [
-  { id: 1, task: 'Pothole Repair - Zone A', credit: '+0.5 tCO2e', time: '10 min ago' },
-  { id: 2, task: 'Traffic Flow Optimization', credit: '+1.2 tCO2e', time: '1 hour ago' },
-  { id: 3, task: 'Cycle Lane Expansion', credit: '+0.8 tCO2e', time: '3 hours ago' },
-  { id: 4, task: 'Street Light Upgrade', credit: '+0.3 tCO2e', time: '5 hours ago' },
-  { id: 5, task: 'Pothole Repair - Zone C', credit: '+0.4 tCO2e', time: '7 hours ago' },
+  {
+    id: 1,
+    task: 'Pothole Repair - Zone A',
+    credit: '+0.5 tCO2e',
+    time: '10 min ago',
+    status: 'secured',
+    txHash: '0x8f...3a1',
+  },
+  {
+    id: 2,
+    task: 'Traffic Flow Optimization',
+    credit: '+1.2 tCO2e',
+    time: 'Just now',
+    status: 'minting',
+    txHash: null,
+  },
+  {
+    id: 3,
+    task: 'Cycle Lane Expansion',
+    credit: '+0.8 tCO2e',
+    time: '3 hours ago',
+    status: 'secured',
+    txHash: '0x2b...9c4',
+  },
+  {
+    id: 4,
+    task: 'Street Light Upgrade',
+    credit: '+0.3 tCO2e',
+    time: '5 hours ago',
+    status: 'secured',
+    txHash: '0x1e...7d2',
+  },
+  {
+    id: 5,
+    task: 'Pothole Repair - Zone C',
+    credit: '+0.4 tCO2e',
+    time: '7 hours ago',
+    status: 'secured',
+    txHash: '0x9a...5f8',
+  },
 ]
 
 export function RWAActivityBridge() {
@@ -50,10 +85,24 @@ export function RWAActivityBridge() {
                 <div className="flex items-center gap-3 w-full sm:w-[40%] justify-start sm:justify-end">
                   <div className="text-left sm:text-right min-w-0">
                     <div className="text-sm font-bold text-emerald-500 truncate">{act.credit}</div>
-                    <div className="text-xs text-muted-foreground">Asset Minted</div>
+                    {act.status === 'minting' ? (
+                      <div className="text-xs text-orange-500 animate-pulse">
+                        Minting in Progress...
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-muted-foreground font-mono bg-muted/50 px-1 py-0.5 rounded border border-border/50 mt-1">
+                        Tx: {act.txHash}
+                      </div>
+                    )}
                   </div>
-                  <div className="p-2 bg-emerald-500/10 rounded-full shrink-0 order-first sm:order-last">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <div
+                    className={`p-2 rounded-full shrink-0 order-first sm:order-last ${act.status === 'minting' ? 'bg-orange-500/10' : 'bg-emerald-500/10'}`}
+                  >
+                    {act.status === 'minting' ? (
+                      <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    )}
                   </div>
                 </div>
               </div>
