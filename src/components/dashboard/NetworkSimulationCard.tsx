@@ -3,8 +3,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
-import { Wifi, WifiOff, Database } from 'lucide-react'
+import { Wifi, WifiOff, Database, Info, Activity } from 'lucide-react'
 import { useSimulation } from '@/stores/SimulationContext'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function NetworkSimulationCard() {
   const { isSimulatedOffline, toggleSimulatedOffline } = useSimulation()
@@ -53,14 +54,28 @@ export function NetworkSimulationCard() {
     <Card className="glass-panel w-full">
       <CardHeader className="pb-3 border-b border-border/50">
         <CardTitle className="text-base flex items-center justify-between">
-          <span className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {isSimulatedOffline ? (
               <WifiOff className="w-4 h-4 text-destructive" />
             ) : (
               <Wifi className="w-4 h-4 text-emerald-500" />
             )}
-            Connectivity Sandbox
-          </span>
+            <span>Connectivity Sandbox</span>
+            {syncing && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 text-[9px] font-bold uppercase tracking-wider animate-pulse ml-1">
+                <Activity className="w-3 h-3" /> Live Sync
+              </span>
+            )}
+            {!syncing && !isSimulatedOffline && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[9px] font-bold uppercase tracking-wider ml-1">
+                <span className="relative flex h-1.5 w-1.5 mr-0.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                </span>
+                Live
+              </span>
+            )}
+          </div>
           <Switch checked={isSimulatedOffline} onCheckedChange={toggleSimulatedOffline} />
         </CardTitle>
       </CardHeader>
@@ -80,10 +95,24 @@ export function NetworkSimulationCard() {
 
         <div className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-xs font-medium flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-blue-500" /> Pending Sync Queue
+            <div className="text-xs font-medium flex items-center gap-1.5">
+              <Database className="w-3.5 h-3.5 text-blue-500" />
+              <span>Pending Sync Queue</span>
+              <Tooltip>
+                <TooltipTrigger type="button" className="cursor-help">
+                  <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[200px] text-xs">
+                  <p>
+                    Fila local de eventos aguardando reconexão. Evita perda de dados durante buracos
+                    de cobertura na rede 3G/4G.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <span className="font-mono text-sm bg-muted px-1.5 py-0.5 rounded border border-border/50">
+              {queue} pts
             </span>
-            <span className="font-mono text-sm">{queue} pts</span>
           </div>
 
           <div className="space-y-1.5 h-8">

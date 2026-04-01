@@ -3,8 +3,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Wrench, MapPin, Plus, AlertTriangle } from 'lucide-react'
+import { Wrench, MapPin, Plus, AlertTriangle, Info } from 'lucide-react'
 import { useAnomalyStore } from '@/stores/useAnomalyStore'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface ServiceOrder {
   id: string
@@ -87,9 +88,23 @@ export function WearAnalysisCard() {
                       <div className="font-medium flex items-center gap-1.5 text-xs">
                         <MapPin className="w-3.5 h-3.5" /> {seg.location}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        Score: <strong>{seg.priorityScore.toFixed(1)}</strong> (Freq: {seg.freq},
-                        Sev: {seg.avgG.toFixed(1)}G)
+                      <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <span>
+                          Score: <strong>{seg.priorityScore.toFixed(1)}</strong> (Freq: {seg.freq},
+                          Sev: {seg.avgG.toFixed(1)}G)
+                        </span>
+                        <Tooltip>
+                          <TooltipTrigger type="button" className="cursor-help">
+                            <Info className="w-3 h-3 text-muted-foreground opacity-70 hover:opacity-100 transition-opacity" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[200px] text-xs" side="right">
+                            <p>
+                              <strong>Priority Score</strong> é calculado multiplicando a Frequência
+                              (Nº de detecções) pela Severidade (Força G), definindo o quão urgente
+                              é a manutenção.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
                     <Button

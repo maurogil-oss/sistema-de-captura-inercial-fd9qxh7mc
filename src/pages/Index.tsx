@@ -18,8 +18,10 @@ import {
   Cpu,
   Smartphone,
   Battery,
+  Info,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui-custom/StatCard'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import { MapMock } from '@/components/ui-custom/MapMock'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -360,10 +362,19 @@ export default function Index() {
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between items-center text-sm text-muted-foreground">
-                    <span className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                       <Smartphone className="w-4 h-4 text-blue-500" />
-                      Eficiência de Filtragem
-                    </span>
+                      <span>Eficiência de Filtragem</span>
+                      <Tooltip>
+                        <TooltipTrigger type="button" className="cursor-help">
+                          <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[200px] text-xs">
+                          Porcentagem de leituras irrelevantes descartadas localmente pelo algoritmo
+                          Edge AI do SDK, economizando consumo de rede na nuvem.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <span className="font-mono font-bold text-blue-500">{edgeEfficiency}%</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
@@ -415,7 +426,7 @@ export default function Index() {
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                 </span>
-                                Online
+                                Online (Live)
                               </span>
                             ) : (
                               <span className="flex items-center gap-1.5 text-muted-foreground">

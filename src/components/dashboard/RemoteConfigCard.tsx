@@ -9,7 +9,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useConfigStore } from '@/stores/useConfigStore'
-import { Settings } from 'lucide-react'
+import { Settings, Info } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function RemoteConfigCard() {
   const { config, setConfig, setProfile } = useConfigStore()
@@ -24,7 +25,18 @@ export function RemoteConfigCard() {
       </CardHeader>
       <CardContent className="space-y-6 pt-5">
         <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Perfil de Via</Label>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Label className="text-xs text-muted-foreground">Perfil de Via</Label>
+            <Tooltip>
+              <TooltipTrigger type="button" className="cursor-help">
+                <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[200px] text-xs">
+                Ajuste os parâmetros padrão para diferentes tipos de pavimento ou ative o modo
+                Customizado.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Select value={config.profile} onValueChange={(v: any) => setProfile(v)}>
             <SelectTrigger className="h-9 text-sm">
               <SelectValue placeholder="Selecione um perfil" />
@@ -39,7 +51,18 @@ export function RemoteConfigCard() {
 
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <Label className="text-xs text-muted-foreground">Threshold G-Force</Label>
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground">Threshold G-Force</Label>
+              <Tooltip>
+                <TooltipTrigger type="button" className="cursor-help">
+                  <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[200px] text-xs">
+                  Força mínima para detectar irregularidades. Valores baixos aumentam a
+                  sensibilidade para micro-impactos.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <span className="text-xs font-mono font-medium">
               {config.gForceThreshold.toFixed(1)}G
             </span>
@@ -55,7 +78,18 @@ export function RemoteConfigCard() {
 
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <Label className="text-xs text-muted-foreground">Frequência de Amostragem</Label>
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground">Frequência de Amostragem</Label>
+              <Tooltip>
+                <TooltipTrigger type="button" className="cursor-help">
+                  <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[200px] text-xs">
+                  Taxa de leitura do sensor por segundo (Hz). Maior frequência melhora a precisão,
+                  mas consome mais bateria.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <span className="text-xs font-mono font-medium">{config.samplingFreq}Hz</span>
           </div>
           <Slider
